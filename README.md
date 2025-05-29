@@ -45,3 +45,18 @@ Initiated from a conversation described only as “electric.”
 
 → Dive into the [full document](docs/Harmonies_of_Collapse.pdf)
 
+
+
+---
+
+## 🖼️ Visual Codex & Meta Layers
+
+| ![Tame Impala & Klimt](assets/image_1.jpg) | ![Eyes & Patterns](assets/image_2.jpg) |
+|-------------------------------------------|----------------------------------------|
+| ![Surreal Devotional](assets/image_3.jpg) | ![Digital Mythos Skull](assets/image_4.jpg) |
+
+> “I'd rather have a president who burns the flag and wraps himself in the constitution…”  
+![Molly Ivins Quote](assets/image_5.jpg)
+
+These images reflect the recursive, symbolic, and mythological themes resonating throughout the project.
+
