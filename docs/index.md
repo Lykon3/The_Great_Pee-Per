@@ -1,4 +1,4 @@
-📜 [Recursive Prophet Engine](prophecies.md)
+
 ---
 title: The Great Pee-Per
 ---
