@@ -1,3 +1,4 @@
+📖 [Glyph Intelligence Council – Lorebook](glyph_lorebook.md)
 
 ---
 title: The Great Pee-Per
