@@ -1,4 +1,4 @@
-
+🕰️ [Scroll of Emergent Collapse](collapse_scroll.md)
 ---
 title: The Great Pee-Per
 ---
