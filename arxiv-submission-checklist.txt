@@ -1,0 +1,84 @@
+# arXiv Submission Checklist for PTFFG Paper
+
+## Required Files
+
+- [ ] **Main LaTeX file (ptffg.tex)**
+  - Replace author name placeholders with actual names
+  - Update institution affiliations
+  - Add corresponding author email
+  - Ensure all sections are complete
+  - Double-check all cross-references (figures, equations, sections)
+
+- [ ] **Figure files**
+  - [ ] figure1.pdf or figure1.png (Distortion maps)
+  - [ ] figure2.pdf or figure2.png (Deflection angle distributions)
+  - [ ] figure3.pdf or figure3.png (Power spectrum comparison)
+  - [ ] figure4.pdf or figure4.png (Scale-dependent analysis)
+  - [ ] figure5.pdf or figure5.png (Chromatic effects)
+  - [ ] figure6.pdf or figure6.png (Polarization rotation)
+  - Ensure all figures are high resolution (minimum 300 dpi)
+  - Make sure all text in figures is readable
+  - Check that color schemes are accessible
+
+- [ ] **Bibliography**
+  - Option 1: Include the references section at the end of the main .tex file (as provided)
+  - Option 2: Create separate .bib file and use \bibliography{yourfile} command
+  - Check all citations are correctly formatted and complete
+
+## arXiv Submission Information
+
+- [ ] **Metadata**
+  - Title: "Plasma Tension Fractal Field Gravity: Predicting Fractal Signatures in Gravitational Lensing and Plasma Dynamics"
+  - Authors: [Complete list with affiliations]
+  - Abstract: [Use existing abstract]
+  - Comments: "32 pages, 6 figures, submitted to Physical Review D"
+  - Journal-ref: [Leave blank, update later when published]
+  - Report-no: [Optional, can leave blank]
+  - Primary classification: astro-ph.CO (Cosmology and Nongalactic Astrophysics)
+  - Cross-list classifications:
+    - gr-qc (General Relativity and Quantum Cosmology)
+    - physics.plasm-ph (Plasma Physics)
+    - astro-ph.GA (Astrophysics of Galaxies)
+
+## Preparing Your Submission Package
+
+1. **Create a clean directory** with only the files needed for submission
+2. **Verify LaTeX compilation** works correctly on your local machine
+3. **Check all figure references** are correct in the compiled PDF
+4. **Create a .tar.gz or .zip archive** containing:
+   - Main .tex file
+   - All figure files
+   - Any additional files needed (e.g., .bib file if using separate bibliography)
+5. **Verify archive contents** to ensure all necessary files are included
+
+## Submission Process
+
+1. **Create/login to arXiv account**: https://arxiv.org/user/login
+2. **Start a new submission**: Select "Start a new submission"
+3. **Upload files**: Upload your .tar.gz or .zip archive
+4. **Process files**: Allow arXiv to process your files (may take a few minutes)
+5. **Review PDF**: Carefully check the auto-generated PDF for any formatting issues
+6. **Enter metadata**: Fill in all required metadata fields
+7. **Submit**: Complete submission process
+
+## Submission Timing Tips
+
+- **Optimal submission window**: Submit between Monday morning and Tuesday afternoon (US time) for inclusion in Tuesday's mailing
+- **Announcement schedule**: Papers submitted by 2:00pm ET will typically be announced at 8:00pm ET the same day (during weekdays)
+- **Revision window**: You have a short window to make edits after initial submission before the paper is publicly announced
+
+## Post-Submission
+
+- **Save submission ID**: Record your submission ID for future reference
+- **Download final PDF**: Save a copy of the final PDF as it appears on arXiv
+- **Verify metadata**: Check that all metadata appears correctly on the arXiv listing
+- **Share arXiv link**: Once announced, share your paper's arXiv link with colleagues
+
+## Journal Submission (Physical Review D)
+
+After arXiv submission:
+
+1. **Prepare cover letter**: Use the template provided earlier
+2. **Submit to PRD**: https://journals.aps.org/prd/authors
+3. **Include arXiv number**: Reference your arXiv submission in the cover letter
+4. **Follow PRD guidelines**: Ensure manuscript adheres to all PRD formatting requirements

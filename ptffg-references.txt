@@ -1,0 +1,82 @@
+% References section for PTFFG paper
+% To be added at the end of your LaTeX document before \end{document}
+
+\section*{References}
+\begin{thebibliography}{99}
+
+\bibitem[Aschwanden(2011)]{Aschwanden2011}
+Aschwanden, M.~J. (2011).
+\newblock {\em Self-Organized Criticality in Astrophysics: The Statistics of Nonlinear Processes in the Universe}.
+\newblock Berlin: Springer-Verlag.
+
+\bibitem[Bartelmann and Schneider(2001)]{BartelmannSchneider2001}
+Bartelmann, M. and Schneider, P. (2001).
+\newblock Weak Gravitational Lensing.
+\newblock {\em Physics Reports}, 340:291--472.
+
+\bibitem[Biskamp(2003)]{Biskamp2003}
+Biskamp, D. (2003).
+\newblock {\em Magnetohydrodynamic Turbulence}.
+\newblock Cambridge: Cambridge University Press.
+
+\bibitem[Chen(2016)]{Chen2016}
+Chen, F.~F. (2016).
+\newblock {\em Introduction to Plasma Physics and Controlled Fusion}.
+\newblock Cham: Springer International Publishing.
+
+\bibitem[Einstein(1916)]{Einstein1916}
+Einstein, A. (1916).
+\newblock Die Grundlage der allgemeinen Relativitätstheorie.
+\newblock {\em Annalen der Physik}, 354:769--822.
+
+\bibitem[Jacobson(1995)]{Jacobson1995}
+Jacobson, T. (1995).
+\newblock Thermodynamics of Spacetime: The Einstein Equation of State.
+\newblock {\em Physical Review Letters}, 75:1260--1263.
+
+\bibitem[LSST Science Collaboration et~al.(2009)]{LSSTCollaboration2009}
+LSST Science Collaboration, Abell, P.~A., Allison, J., et~al. (2009).
+\newblock LSST Science Book, Version 2.0.
+\newblock {\em arXiv e-prints}, arXiv:0912.0201.
+
+\bibitem[Mandelbrot(1983)]{Mandelbrot1983}
+Mandelbrot, B.~B. (1983).
+\newblock {\em The Fractal Geometry of Nature}.
+\newblock New York: W. H. Freeman and Company.
+
+\bibitem[Padmanabhan(2010)]{Padmanabhan2010}
+Padmanabhan, T. (2010).
+\newblock Thermodynamical Aspects of Gravity: New insights.
+\newblock {\em Reports on Progress in Physics}, 73:046901.
+
+\bibitem[Planck Collaboration et~al.(2020)]{PlanckCollaboration2020}
+Planck Collaboration, Aghanim, N., Akrami, Y., et~al. (2020).
+\newblock Planck 2018 results. VI. Cosmological parameters.
+\newblock {\em Astronomy \& Astrophysics}, 641:A6.
+
+\bibitem[SKA Science Working Group(2015)]{SKAScienceWorkingGroup2015}
+SKA Science Working Group (2015).
+\newblock SKA1 Scientific Use Cases.
+\newblock SKA-TEL-SKO-0000307.
+
+\bibitem[Verlinde(2011)]{Verlinde2011}
+Verlinde, E. (2011).
+\newblock On the Origin of Gravity and the Laws of Newton.
+\newblock {\em Journal of High Energy Physics}, 2011:29.
+
+\bibitem[Weinberg(1972)]{Weinberg1972}
+Weinberg, S. (1972).
+\newblock {\em Gravitation and Cosmology: Principles and Applications of the General Theory of Relativity}.
+\newblock New York: John Wiley \& Sons.
+
+\bibitem[Wetzstein et~al.(2009)]{Wetzstein2009}
+Wetzstein, M., Nelson, A.~F., Naab, T., and Burkert, A. (2009).
+\newblock Vine—A Numerical Code for Simulating Astrophysical Systems Using Particles. I. Description of the Physics and the Numerical Methods.
+\newblock {\em The Astrophysical Journal Supplement Series}, 184:298--325.
+
+\bibitem[Zwicky(1937)]{Zwicky1937}
+Zwicky, F. (1937).
+\newblock On the Masses of Nebulae and of Clusters of Nebulae.
+\newblock {\em The Astrophysical Journal}, 86:217--246.
+
+\end{thebibliography}

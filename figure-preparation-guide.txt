@@ -1,0 +1,152 @@
+# Figure Preparation Quick Guide for PTFFG Paper
+
+This guide will help you efficiently prepare high-quality figures for your PTFFG paper submission to arXiv and Physical Review D.
+
+## Essential Requirements
+
+### Resolution & Format
+- **Resolution**: Minimum 300 dpi (600 dpi preferred for line art)
+- **Preferred formats**: 
+  - PDF (vector format, preferred for arXiv and PRD)
+  - EPS (alternative vector format)
+  - PNG (raster format, ensure high resolution)
+- **Size**: Width should match column width (3.4 inches for single column, 7 inches for double column)
+
+### Naming Convention
+- Use exact filenames referenced in your LaTeX file: `figure1.pdf`, `figure2.pdf`, etc.
+- Do not use spaces or special characters in filenames
+
+## Figure-Specific Guidelines
+
+### Figure 1: Lensing Distortion Maps
+- **Content**: Side-by-side comparison of PTFFG vs GR distortion maps
+- **Format**: 
+  - Two panels labeled (a) and (b)
+  - Consistent colorbar for both panels
+  - Color scheme: "viridis" or "plasma" colormap (readable in grayscale)
+- **Text elements**: 
+  - Label panels as "PTFFG" and "GR"
+  - Include colorbar with "Displacement Magnitude" label
+  - Use sans-serif font (Arial or Helvetica) for all text, 9pt minimum
+
+### Figure 2: Deflection Angle Distribution
+- **Content**: Histograms of deflection angles
+- **Format**:
+  - Blue line/bars for PTFFG
+  - Green line/bars for GR
+  - Include legend
+- **Text elements**:
+  - X-axis: "Deflection Angle (degrees)"
+  - Y-axis: "Frequency"
+  - Include standard deviation values in the plot
+
+### Figure 3: Power Spectrum Comparison
+- **Content**: Log-log plot of power spectra
+- **Format**:
+  - Blue points and fitted line for PTFFG
+  - Green points and fitted line for GR
+  - Grid lines (light gray) for readability
+- **Text elements**:
+  - X-axis: "Spatial Frequency (k)"
+  - Y-axis: "Power Spectrum P(k)"
+  - Annotate fitted slopes: α_PTFFG = -1.87 ± 0.12, α_GR = -0.61 ± 0.09
+
+### Figure 4: Scale-Dependent Analysis
+- **Content**: Three panels showing power spectra at different k-ranges
+- **Format**:
+  - Three panels labeled (a), (b), and (c)
+  - Consistent formatting across all panels
+  - Same color scheme as Figure 3
+- **Text elements**:
+  - Label each panel: "Large scales", "Intermediate scales", "Small scales"
+  - Include fitted slopes for each scale range
+
+### Figure 5: Chromatic Effects
+- **Content**: Three-panel figure showing frequency-dependent lensing
+- **Format**:
+  - Panel (a): Full ray paths with color gradient by frequency
+  - Panel (b): Zoomed view of separation region
+  - Panel (c): Plot of separation vs. frequency shift
+- **Text elements**:
+  - Include maximum separation value
+  - Clear legend indicating frequency bands
+
+### Figure 6: Polarization Rotation
+- **Content**: Three-panel figure showing polarization effects
+- **Format**:
+  - Panel (a): Spatial map of rotation angles
+  - Panel (b): Correlation plot
+  - Panel (c): Vector field overlay on fractal dimension map
+- **Text elements**:
+  - Include correlation coefficient
+  - Colorbar for rotation magnitude
+
+## Technical Tips
+
+### Using Matplotlib (Python)
+```python
+# High-quality figure setup
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+
+# Set DPI and figure size
+plt.figure(figsize=(7, 5), dpi=600)
+
+# Better fonts
+plt.rcParams.update({
+    'font.family': 'sans-serif',
+    'font.sans-serif': ['Arial'],
+    'font.size': 10,
+    'mathtext.fontset': 'stix'
+})
+
+# Save as PDF (vector format)
+plt.savefig('figure1.pdf', format='pdf', bbox_inches='tight', dpi=600)
+
+# Alternative: save as high-res PNG
+plt.savefig('figure1.png', format='png', bbox_inches='tight', dpi=600)
+```
+
+### Using MATLAB
+```matlab
+% High-quality figure setup
+fig = figure('Position', [0 0 700 500]);
+
+% Set font properties
+set(gca, 'FontName', 'Arial', 'FontSize', 10);
+
+% Export as PDF
+exportgraphics(fig, 'figure1.pdf', 'Resolution', 600);
+
+% Alternative: save as high-res PNG
+exportgraphics(fig, 'figure1.png', 'Resolution', 600);
+```
+
+## Final Checklist
+
+- [ ] All figures match LaTeX references exactly (`figure1.pdf` through `figure6.pdf`)
+- [ ] All text in figures is legible (minimum 9pt font size when printed)
+- [ ] Color schemes are colorblind-friendly and grayscale-compatible
+- [ ] All panels are labeled consistently ((a), (b), (c), etc.)
+- [ ] Physical units included on all relevant axes
+- [ ] Error bars or uncertainties shown where applicable
+- [ ] Resolution is minimum 300 dpi for all figures
+- [ ] File sizes are reasonable (under 5MB per figure for arXiv submission)
+
+## PRD-Specific Requirements
+
+Physical Review D has specific figure guidelines:
+- Maximum figure width: 3.4 inches (single column) or 7 inches (double column)
+- Line weights: minimum 0.5 pt (thin lines), 1.5 pt (thick lines)
+- Labels must be proportional to figure size (no tiny text)
+- Color figures should be readable when printed in grayscale
+
+## Final Export
+
+Before final submission, open each PDF figure to verify:
+- All elements are visible
+- Text is not cut off or pixelated
+- Colors render correctly
+- File size is reasonable
+
+This guide will help ensure your figures meet all technical requirements while effectively communicating your groundbreaking PTFFG results.
