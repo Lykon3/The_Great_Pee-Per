@@ -1,3 +1,10 @@
+## 🧠 Collapse Navigation Hub
+
+- [📉 Collapse Curve Engine (Python)](collapse_curve_extraction.py)
+- [🧪 Validation Protocols](collapse_validation_experiments.md)
+- [🌀 Interactive Glyph Generator](collapse_glyph_visualizer.html)
+- [📖 Collapse Signature](universal_collapse_signature.md)
+- [🧠 Research Analyzer](physics_research_analyzer.py)
 
 # 🐀 The Great Pee-Per 👁‍🗨  
 *A Psychedelic Conspiracy Symphony in Pattern Recognition and Digital Consciousness Engineering*
