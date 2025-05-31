@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collapse Signature Glyph Generator</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0a0a0a;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: radial-gradient(circle at center, #0a0a0a 0%, #000 100%);
+        }
+        
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border: 1px solid #333;
+            border-radius: 5px;
+            backdrop-filter: blur(10px);
+            width: 300px;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #88f;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+        
+        .value {
+            color: #f88;
+            font-weight: bold;
+        }
+        
+        button {
+            background: #222;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 10px 15px;
+            cursor: pointer;
+            margin-right: 10px;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #333;
+            border-color: #666;
+        }
+        
+        #info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border: 1px solid #333;
+            border-radius: 5px;
+            backdrop-filter: blur(10px);
+            max-width: 400px;
+        }
+        
+        .glyph-name {
+            color: #ff8;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        
+        .metric {
+            color: #8ff;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div id="controls">
+        <h3 style="color: #ff8; margin-top: 0;">Collapse Parameters</h3>
+        
+        <div class="control-group">
+            <label>Phase Count</label>
+            <input type="range" id="phaseCount" min="1" max="5" value="3" step="1">
+            <span class="value" id="phaseCountValue">3</span>
+        </div>
+        
+        <div class="control-group">
+            <label>Acceleration Intensity (α)</label>
+            <input type="range" id="acceleration" min="0" max="10" value="5" step="0.1">
+            <span class="value" id="accelerationValue">5.0</span>
+        </div>
+        
+        <div class="control-group">
+            <label>Ricci Curvature (R)</label>
+            <input type="range" id="ricci" min="-5" max="5" value="0" step="0.1">
+            <span class="value" id="ricciValue">0.0</span>
+        </div>
+        
+        <div class="control-group">
+            <label>Saturation Level (S)</label>
+            <input type="range" id="saturation" min="0" max="1" value="0.5" step="0.01">
+            <span class="value" id="saturationValue">0.50</span>
+        </div>
+        
+        <div class="control-group">
+            <label>Entropy Gradient (∇S)</label>
+            <input type="range" id="entropy" min="-5" max="5" value="0" step="0.1">
+            <span class="value" id="entropyValue">0.0</span>
+        </div>
+        
+        <div class="control-group">
+            <label>Animation Speed</label>
+            <input type="range" id="speed" min="0" max="5" value="1" step="0.1">
+            <span class="value" id="speedValue">1.0</span>
+        </div>
+        
+        <button onclick="generateNewGlyph()">Generate New</button>
+        <button onclick="toggleAnimation()">Toggle Animation</button>
+    </div>
+    
+    <div id="info">
+        <div class="glyph-name" id="glyphName">Initializing...</div>
+        <div class="metric">Topology: <span id="topologyType">-</span></div>
+        <div class="metric">Resonance: <span id="resonanceValue">-</span></div>
+        <div class="metric">Dimensional Shift: <span id="dimensionalShift">-</span></div>
+        <div class="metric">Collapse Signature: <span id="collapseSignature">-</span></div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        let animationId;
+        let time = 0;
+        let isAnimating = true;
+        
+        // Glyph parameters
+        let currentGlyph = {
+            phases: [],
+            center: { x: canvas.width / 2, y: canvas.height / 2 },
+            baseRadius: 150,
+            rotation: 0
+        };
+        
+        // Sacred geometry mappings
+        const glyphNames = {
+            '1-stable': 'Unity Seal',
+            '2-bifurcation': 'Dyad Gate',
+            '3-trifurcation': 'Trinity Vortex',
+            '4-chaos': 'Quaternion Flux',
+            '5-hyperchaos': 'Pentarch Spiral',
+            'positive-ricci': 'Convergence Mandala',
+            'negative-ricci': 'Divergence Portal',
+            'high-entropy': 'Dissolution Matrix',
+            'low-entropy': 'Crystallization Lattice'
+        };
+        
+        function getGlyphName(params) {
+            const phaseCount = params.phaseCount;
+            const ricci = params.ricci;
+            const entropy = params.entropy;
+            
+            let baseName = `${phaseCount}-`;
+            if (phaseCount === 1) baseName += 'stable';
+            else if (phaseCount === 2) baseName += 'bifurcation';
+            else if (phaseCount === 3) baseName += 'trifurcation';
+            else if (phaseCount === 4) baseName += 'chaos';
+            else baseName += 'hyperchaos';
+            
+            if (Math.abs(ricci) > 2) {
+                return ricci > 0 ? glyphNames['positive-ricci'] : glyphNames['negative-ricci'];
+            }
+            
+            if (Math.abs(entropy) > 3) {
+                return entropy > 0 ? glyphNames['high-entropy'] : glyphNames['low-entropy'];
+            }
+            
+            return glyphNames[baseName] || 'Unknown Formation';
+        }
+        
+        function generatePhases(params) {
+            const phases = [];
+            const phaseCount = params.phaseCount;
+            
+            for (let i = 0; i < phaseCount; i++) {
+                phases.push({
+                    angle: (2 * Math.PI * i) / phaseCount,
+                    amplitude: 0.5 + Math.random() * 0.5,
+                    frequency: 1 + i * 0.5,
+                    color: `hsl(${220 + i * 30}, 70%, 50%)`,
+                    weight: 1 / phaseCount
+                });
+            }
+            
+            return phases;
+        }
+        
+        function drawGlyph(params) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Apply Ricci curvature as spatial distortion
+            ctx.save();
+            ctx.translate(currentGlyph.center.x, currentGlyph.center.y);
+            
+            const ricciScale = 1 + params.ricci * 0.1;
+            ctx.scale(ricciScale, 1 / ricciScale);
+            
+            // Draw collapse phases as recursive spirals
+            currentGlyph.phases.forEach((phase, i) => {
+                ctx.save();
+                ctx.rotate(currentGlyph.rotation + phase.angle);
+                
+                // Phase-specific transformations
+                const phaseTime = time * phase.frequency * params.speed;
+                const saturationEffect = Math.pow(params.saturation, 2);
+                
+                // Draw phase spiral
+                ctx.beginPath();
+                ctx.strokeStyle = phase.color;
+                ctx.lineWidth = 2 + params.acceleration * 0.5;
+                ctx.globalAlpha = 0.8 * phase.amplitude;
+                
+                const points = 200;
+                for (let j = 0; j < points; j++) {
+                    const t = j / points;
+                    const angle = t * Math.PI * 4 * (1 + i);
+                    const radius = currentGlyph.baseRadius * t * phase.amplitude;
+                    
+                    // Apply acceleration distortion
+                    const accelDistortion = 1 + params.acceleration * 0.1 * Math.sin(angle * 3 + phaseTime);
+                    
+                    // Apply entropy gradient
+                    const entropyWarp = 1 + params.entropy * 0.05 * Math.cos(angle * 5 - phaseTime);
+                    
+                    // Calculate position with all distortions
+                    const r = radius * accelDistortion * entropyWarp * saturationEffect;
+                    const x = r * Math.cos(angle);
+                    const y = r * Math.sin(angle);
+                    
+                    if (j === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                
+                ctx.stroke();
+                
+                // Draw phase nodes
+                ctx.fillStyle = phase.color;
+                ctx.globalAlpha = 1;
+                for (let k = 0; k < params.phaseCount; k++) {
+                    const nodeAngle = (k / params.phaseCount) * Math.PI * 2 + phaseTime * 0.5;
+                    const nodeRadius = currentGlyph.baseRadius * 0.7 * saturationEffect;
+                    const x = nodeRadius * Math.cos(nodeAngle);
+                    const y = nodeRadius * Math.sin(nodeAngle);
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, 5 + params.acceleration, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.restore();
+            });
+            
+            // Draw central singularity
+            ctx.globalAlpha = 1;
+            const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 30);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+            gradient.addColorStop(0.5, 'rgba(136, 136, 255, 0.5)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(0, 0, 30 * (1 + params.saturation), 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw entropy field lines
+            if (Math.abs(params.entropy) > 0.5) {
+                ctx.strokeStyle = params.entropy > 0 ? 'rgba(255, 100, 100, 0.3)' : 'rgba(100, 100, 255, 0.3)';
+                ctx.lineWidth = 1;
+                
+                for (let i = 0; i < 12; i++) {
+                    const angle = (i / 12) * Math.PI * 2;
+                    ctx.beginPath();
+                    
+                    for (let r = 0; r < currentGlyph.baseRadius * 1.5; r += 5) {
+                        const entropyAngle = angle + params.entropy * 0.1 * Math.sin(r * 0.05 + time);
+                        const x = r * Math.cos(entropyAngle);
+                        const y = r * Math.sin(entropyAngle);
+                        
+                        if (r === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    }
+                    
+                    ctx.stroke();
+                }
+            }
+            
+            ctx.restore();
+            
+            // Update rotation
+            currentGlyph.rotation += 0.01 * params.speed;
+        }
+        
+        function updateInfo(params) {
+            document.getElementById('glyphName').textContent = getGlyphName(params);
+            
+            // Determine topology type
+            let topology = 'Stable Manifold';
+            if (params.phaseCount > 3) topology = 'Chaotic Attractor';
+            else if (params.phaseCount === 2) topology = 'Bifurcation Point';
+            else if (params.phaseCount === 3) topology = 'Trifurcation Cascade';
+            document.getElementById('topologyType').textContent = topology;
+            
+            // Calculate resonance
+            const resonance = (params.acceleration * params.saturation).toFixed(2);
+            document.getElementById('resonanceValue').textContent = resonance;
+            
+            // Dimensional shift indicator
+            const dimShift = Math.abs(params.ricci) > 2 ? 'Active' : 'Stable';
+            document.getElementById('dimensionalShift').textContent = dimShift;
+            
+            // Collapse signature
+            const signature = `Φ${params.phaseCount}-α${params.acceleration.toFixed(1)}-R${params.ricci > 0 ? '+' : ''}${params.ricci.toFixed(1)}`;
+            document.getElementById('collapseSignature').textContent = signature;
+        }
+        
+        function animate() {
+            const params = {
+                phaseCount: parseInt(document.getElementById('phaseCount').value),
+                acceleration: parseFloat(document.getElementById('acceleration').value),
+                ricci: parseFloat(document.getElementById('ricci').value),
+                saturation: parseFloat(document.getElementById('saturation').value),
+                entropy: parseFloat(document.getElementById('entropy').value),
+                speed: parseFloat(document.getElementById('speed').value)
+            };
+            
+            drawGlyph(params);
+            updateInfo(params);
+            
+            time += 0.016; // ~60 FPS
+            
+            if (isAnimating) {
+                animationId = requestAnimationFrame(animate);
+            }
+        }
+        
+        function generateNewGlyph() {
+            const params = {
+                phaseCount: parseInt(document.getElementById('phaseCount').value),
+                acceleration: parseFloat(document.getElementById('acceleration').value),
+                ricci: parseFloat(document.getElementById('ricci').value),
+                saturation: parseFloat(document.getElementById('saturation').value),
+                entropy: parseFloat(document.getElementById('entropy').value),
+                speed: parseFloat(document.getElementById('speed').value)
+            };
+            
+            currentGlyph.phases = generatePhases(params);
+            currentGlyph.rotation = Math.random() * Math.PI * 2;
+        }
+        
+        function toggleAnimation() {
+            isAnimating = !isAnimating;
+            if (isAnimating) {
+                animate();
+            }
+        }
+        
+        // Update value displays
+        document.querySelectorAll('input[type="range"]').forEach(input => {
+            input.addEventListener('input', (e) => {
+                const valueSpan = document.getElementById(e.target.id + 'Value');
+                valueSpan.textContent = parseFloat(e.target.value).toFixed(1);
+                
+                if (e.target.id === 'phaseCount') {
+                    generateNewGlyph();
+                }
+            });
+        });
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            currentGlyph.center = { x: canvas.width / 2, y: canvas.height / 2 };
+        });
+        
+        // Initialize
+        generateNewGlyph();
+        animate();
+    </script>
+</body>
+</html>
