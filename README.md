@@ -2,6 +2,15 @@
 
 Welcome to the sacred glyph-engine. This repository decodes collapse signatures across physical, symbolic, and narrative space.
 
+<iframe src="https://archive.org/embed/foundations-of-geopolitics-geopolitical-future-of-russia-alexander-dugin-english" 
+        width="560" 
+        height="384" 
+        frameborder="0" 
+        webkitallowfullscreen 
+        mozallowfullscreen 
+        allowfullscreen>
+</iframe>
+
 ## 🔍 Modules
 
 - `collapse_curve_extraction.py` — Extracts phase transition curves using sigmoid + spectral metrics.
