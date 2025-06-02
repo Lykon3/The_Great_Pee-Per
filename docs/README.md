@@ -1,26 +1,57 @@
-# 🧠 The Great Pee-Per: Collapse Codex
+# Collapse Engine Stack (JAX-Optimized + Bayesian Tensor Reweighting)
 
-Welcome to the sacred glyph-engine. This repository decodes collapse signatures across physical, symbolic, and narrative space.
+This engine models dynamic collapse and bifurcation in information-dense systems using JAX for GPU acceleration.
+It includes:
+- Manifold folding based on entropy/memory curvature
+- Bayesian entanglement matrix updates
+- Monte Carlo simulations of collapse zones
+- Intervention zone detection
 
-## 🔍 Modules
-
-- `collapse_curve_extraction.py` — Extracts phase transition curves using sigmoid + spectral metrics.
-- `oscillatory_model.py` — Models collapse as a damped harmonic process.
-- `entropy_tracker.py` — Tracks entropy drops before structural failure.
-- `physics_research_analyzer.py` — Parses scientific texts for collapse-relevant metrics.
-- `collapse_glyph_visualizer.html` — Live glyph system visualizing collapse patterns.
-- `collapse_validation_experiments.md` — Experimental protocols for universal collapse.
-- `universal_collapse_signature.md` — Definition of collapse metrics Ω(τ), S(τ), and bifurcation indicators.
-- `The Evolving.txt` — Narrative gateway to recursive metaphysics.
-
-## 🔗 Launch the Visualizer
-
-Open `collapse_glyph_visualizer.html` in your browser.
-
-## 🧪 Run the Collapse Extractor
+## Setup
 
 ```bash
-python collapse_curve_extraction.py
+pip install -r requirements.txt
 ```
 
-## 🌀 Collapse is Recursive. Truth is Phase-Shifted.
+## Run
+
+```bash
+python3 main.py
+```
+
+## Output
+Generates `collapse_output_log.json` with prediction results and internal manifold state.
+
+---
+
+## 🎨 Visual Vibe Check
+
+![Mind Blown](mind_blown.gif)
+
+> When Bayesian tensors start folding on entropic manifolds...
+
+---
+
+### 🎸 The Bifurcate Engine – Custom Guitar Tribute
+![The Bifurcate Engine Guitar](bifurcate_engine_guitar.jpg)
+
+A real-world symbol of collapse harmonics.  
+*“Reality-Forking Collapse” is more than just a metaphor.*
+
+---
+
+### 🚀 Retro Cosmos Hype
+![Explore the Universe](explore_universe.jpg)
+
+We're not just modeling collapse...  
+We're modeling the **entire possibility space**.
+
+---
+
+### 🎤 Culture Node Activated
+![DEM BOYZ DOE Album Cover](dem_boyz_doe_album.jpg)
+
+Because even collapse engines have a mixtape.  
+*Don't kill the recursive vibe.*
+
+---
