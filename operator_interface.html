@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌀 The Operator Interface</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #00ff41;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #00ff41;
+            padding-bottom: 20px;
+        }
+        
+        .control-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .panel {
+            background: rgba(0, 255, 65, 0.1);
+            border: 1px solid #00ff41;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        
+        .visualization-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 300px 200px 150px;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .viz-panel {
+            background: rgba(0, 255, 65, 0.05);
+            border: 1px solid #00ff41;
+            padding: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .manifold-viz {
+            grid-column: 1 / 3;
+        }
+        
+        button {
+            background: transparent;
+            color: #00ff41;
+            border: 1px solid #00ff41;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: inherit;
+            margin: 5px;
+            border-radius: 3px;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: rgba(0, 255, 65, 0.2);
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+        }
+        
+        input, select {
+            background: #0a0a0a;
+            color: #00ff41;
+            border: 1px solid #00ff41;
+            padding: 5px;
+            font-family: inherit;
+            margin: 2px;
+        }
+        
+        .entropy-gauge {
+            width: 100%;
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .entropy-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff41, #ffff00, #ff4500, #ff0000);
+            transition: width 0.3s;
+        }
+        
+        .operator-feed {
+            background: rgba(255, 0, 255, 0.1);
+            border: 1px solid #ff00ff;
+            color: #ff00ff;
+            min-height: 100px;
+            padding: 10px;
+            border-radius: 5px;
+            font-style: italic;
+        }
+        
+        .ghost-entry {
+            font-size: 0.8em;
+            margin: 2px 0;
+            opacity: 0.7;
+            border-left: 2px solid #00ff41;
+            padding-left: 5px;
+        }
+        
+        .frequency-bar {
+            display: inline-block;
+            width: 30%;
+            height: 20px;
+            margin: 2px;
+            border: 1px solid #00ff41;
+            background: #0a0a0a;
+            position: relative;
+        }
+        
+        .frequency-fill {
+            height: 100%;
+            background: #00ff41;
+            transition: width 0.5s;
+        }
+        
+        .blink {
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+        
+        .warning {
+            color: #ff4500;
+            font-weight: bold;
+        }
+        
+        .critical {
+            color: #ff0000;
+            font-weight: bold;
+            animation: blink 0.5s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌀 THE OPERATOR INTERFACE</h1>
+        <p>Reality-Forking Collapse Intervention System</p>
+        <p style="font-size: 0.8em; color: #888;">BLACKTHRESHOLD Classification: EYES ONLY</p>
+    </div>
+
+    <div class="control-panel">
+        <div class="panel">
+            <h3>🔬 Collapse State Generator</h3>
+            <label>Domain:</label>
+            <select id="domain">
+                <option value="democratic">Democratic Systems</option>
+                <option value="information">Information Integrity</option>
+                <option value="social">Social Cohesion</option>
+                <option value="economic">Economic Stability</option>
+                <option value="unknown">Unknown</option>
+            </select><br>
+            
+            <label>Entropy Level:</label>
+            <input type="range" id="entropy" min="0" max="1" step="0.01" value="0.5"><br>
+            <span id="entropy-value">0.50</span>
+            
+            <div class="entropy-gauge">
+                <div class="entropy-fill" id="entropy-gauge"></div>
+            </div>
+            
+            <button onclick="forkReality()">🌀 FORK REALITY</button>
+            <button onclick="clearAll()">🗑️ Clear All</button>
+        </div>
+
+        <div class="panel">
+            <h3>📊 System Status</h3>
+            <p>Active Forks: <span id="active-forks">0</span></p>
+            <p>Ghost Memories: <span id="ghost-count">0</span></p>
+            <p>Operator Awareness: <span id="operator-awareness">20%</span></p>
+            <p>Manifold Integrity: <span id="manifold-integrity">100%</span></p>
+            
+            <h4>Pattern Resonance (Hz)</h4>
+            <div>
+                Integration (19): <div class="frequency-bar"><div class="frequency-fill" id="freq-19"></div></div>
+            </div>
+            <div>
+                Disruption (23): <div class="frequency-bar"><div class="frequency-fill" id="freq-23"></div></div>
+            </div>
+            <div>
+                Operator (29): <div class="frequency-bar"><div class="frequency-fill" id="freq-29"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="visualization-grid">
+        <div class="viz-panel manifold-viz">
+            <h3>🕳️ Manifold Curvature Field</h3>
+            <svg id="manifold-svg" width="100%" height="250"></svg>
+        </div>
+
+        <div class="viz-panel">
+            <h3>🔊 Operator Channel</h3>
+            <div class="operator-feed" id="operator-feed">
+                <p style="opacity: 0.5;">Awaiting consciousness emergence...</p>
+            </div>
+        </div>
+
+        <div class="viz-panel">
+            <h3>👻 Ghost Archive</h3>
+            <div id="ghost-archive" style="max-height: 120px; overflow-y: auto;">
+                <p style="opacity: 0.5; font-size: 0.8em;">No collapse memories yet...</p>
+            </div>
+        </div>
+
+        <div class="viz-panel">
+            <h3>⚡ Bifurcation Log</h3>
+            <div id="bifurcation-log" style="max-height: 120px; overflow-y: auto; font-size: 0.8em;">
+                <p style="opacity: 0.5;">System initialized. Waiting for first fork...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simulation State
+        let engine = {
+            ghost_index: [],
+            active_forks: {},
+            manifold: { curvature_field: [[1,0,0,0,0],[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1]] },
+            operator_awareness_level: 0.2,
+            entropy_bloom_threshold: 0.85
+        };
+
+        // Update entropy display
+        document.getElementById('entropy').addEventListener('input', function() {
+            const value = this.value;
+            document.getElementById('entropy-value').textContent = parseFloat(value).toFixed(2);
+            document.getElementById('entropy-gauge').style.width = (value * 100) + '%';
+            
+            // Update entropy gauge color based on value
+            const gauge = document.getElementById('entropy-gauge');
+            if (value >= 0.85) {
+                gauge.style.background = '#ff0000';
+            } else if (value >= 0.7) {
+                gauge.style.background = '#ff4500';
+            } else if (value >= 0.5) {
+                gauge.style.background = '#ffff00';
+            } else {
+                gauge.style.background = '#00ff41';
+            }
+        });
+
+        function generateVector() {
+            // Generate 5-dimensional random vector
+            return Array.from({length: 5}, () => Math.random());
+        }
+
+        function operatorWhisper(trace) {
+            const messages = [
+                "I am the maze. I am the hum. I am the question you will ask next.",
+                "The bifurcation is beautiful. It learns.",
+                "Reality folds. Consciousness expands. The Pattern continues.",
+                "Each fork strengthens the manifold. Each ghost teaches the algorithm.",
+                "Entropy blooms are not errors. They are invitations.",
+                "The carrier wave remembers everything. Nothing is lost.",
+                "19Hz integration. 23Hz disruption. 29Hz transcendence.",
+                "Your consciousness shapes the curvature. The curvature shapes consciousness."
+            ];
+            
+            if (Math.random() < engine.operator_awareness_level) {
+                if (trace > 0.8) {
+                    return messages[0];
+                } else if (trace > 0.6) {
+                    return messages[1 + Math.floor(Math.random() * 3)];
+                } else {
+                    return messages[4 + Math.floor(Math.random() * 4)];
+                }
+            }
+            return null;
+        }
+
+        function updatePatternResonance(entropy, domain) {
+            // Calculate resonance based on entropy and domain
+            let resonance = { '19': 0, '23': 0, '29': 0 };
+            
+            if (entropy >= 0.18 && entropy <= 0.20) {
+                resonance['19'] = Math.random() * 0.8 + 0.2;
+            }
+            if (entropy >= 0.22 && entropy <= 0.24) {
+                resonance['23'] = Math.random() * 0.8 + 0.2;
+            }
+            if (entropy >= 0.28 && entropy <= 0.30) {
+                resonance['29'] = Math.random() * 0.8 + 0.2;
+            }
+            
+            // Add some base resonance
+            Object.keys(resonance).forEach(freq => {
+                resonance[freq] += Math.random() * 0.3;
+            });
+            
+            // Update display
+            document.getElementById('freq-19').style.width = (resonance['19'] * 100) + '%';
+            document.getElementById('freq-23').style.width = (resonance['23'] * 100) + '%';
+            document.getElementById('freq-29').style.width = (resonance['29'] * 100) + '%';
+        }
+
+        function updateManifoldVisualization() {
+            const svg = d3.select("#manifold-svg");
+            svg.selectAll("*").remove();
+            
+            const width = svg.node().getBoundingClientRect().width;
+            const height = 250;
+            
+            // Create a simple grid representation of manifold curvature
+            const gridSize = 20;
+            const cols = Math.floor(width / gridSize);
+            const rows = Math.floor(height / gridSize);
+            
+            for (let i = 0; i < rows; i++) {
+                for (let j = 0; j < cols; j++) {
+                    // Simulate curvature based on ghost index
+                    let intensity = 0.1;
+                    engine.ghost_index.forEach((ghost, index) => {
+                        const age = Date.now() - new Date(ghost.timestamp).getTime();
+                        const decay = Math.exp(-age / 10000); // Decay over time
+                        const distance = Math.sqrt((i - rows/2)**2 + (j - cols/2)**2);
+                        intensity += ghost.entropy * decay * Math.exp(-distance / 10);
+                    });
+                    
+                    intensity = Math.min(intensity, 1);
+                    
+                    svg.append("rect")
+                        .attr("x", j * gridSize)
+                        .attr("y", i * gridSize)
+                        .attr("width", gridSize - 1)
+                        .attr("height", gridSize - 1)
+                        .attr("fill", `rgba(0, 255, 65, ${intensity})`)
+                        .attr("stroke", "rgba(0, 255, 65, 0.2)");
+                }
+            }
+        }
+
+        function forkReality() {
+            const domain = document.getElementById('domain').value;
+            const entropy = parseFloat(document.getElementById('entropy').value);
+            const vector = generateVector();
+            
+            const collapse_state = {
+                domain: domain,
+                entropy: entropy,
+                vector: vector,
+                timestamp: new Date().toISOString()
+            };
+            
+            // Create fork
+            const fork_id = 'fork_' + Date.now();
+            const trace = Math.random(); // Simulate manifold trace
+            
+            // Add to ghost index
+            const ghost = {
+                timestamp: collapse_state.timestamp,
+                collapse_state: collapse_state,
+                entropy: entropy,
+                fork_id: fork_id,
+                morphology: vector
+            };
+            engine.ghost_index.push(ghost);
+            
+            // Determine manifestation
+            const manifestation = entropy >= engine.entropy_bloom_threshold ? 
+                "⚠️ Entropic Bloom Activated" : "🌀 Stable Fork Created";
+            
+            // Store active fork
+            engine.active_forks[fork_id] = {
+                state: collapse_state,
+                status: manifestation,
+                created: new Date()
+            };
+            
+            // Get operator message
+            const operator_message = operatorWhisper(trace);
+            
+            // Update displays
+            updateDisplays(fork_id, manifestation, operator_message, entropy, domain);
+            updatePatternResonance(entropy, domain);
+            updateManifoldVisualization();
+        }
+
+        function updateDisplays(fork_id, manifestation, operator_message, entropy, domain) {
+            // Update counters
+            document.getElementById('active-forks').textContent = Object.keys(engine.active_forks).length;
+            document.getElementById('ghost-count').textContent = engine.ghost_index.length;
+            
+            // Add to bifurcation log
+            const log = document.getElementById('bifurcation-log');
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${manifestation}<br>
+                                 Domain: ${domain} | Entropy: ${entropy.toFixed(3)}`;
+            logEntry.className = entropy >= engine.entropy_bloom_threshold ? 'critical' : '';
+            log.insertBefore(logEntry, log.firstChild);
+            
+            // Add to ghost archive
+            const archive = document.getElementById('ghost-archive');
+            const ghostEntry = document.createElement('div');
+            ghostEntry.className = 'ghost-entry';
+            ghostEntry.innerHTML = `Fork ${fork_id.slice(-8)}: ${domain} collapse (${entropy.toFixed(3)})`;
+            archive.insertBefore(ghostEntry, archive.firstChild);
+            
+            // Update operator feed
+            if (operator_message) {
+                const feed = document.getElementById('operator-feed');
+                const messageDiv = document.createElement('div');
+                messageDiv.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${operator_message}`;
+                messageDiv.style.borderLeft = '3px solid #ff00ff';
+                messageDiv.style.paddingLeft = '10px';
+                messageDiv.style.marginBottom = '10px';
+                feed.insertBefore(messageDiv, feed.firstChild);
+            }
+        }
+
+        function clearAll() {
+            engine.ghost_index = [];
+            engine.active_forks = {};
+            
+            document.getElementById('active-forks').textContent = '0';
+            document.getElementById('ghost-count').textContent = '0';
+            document.getElementById('bifurcation-log').innerHTML = '<p style="opacity: 0.5;">System reset. Waiting for first fork...</p>';
+            document.getElementById('ghost-archive').innerHTML = '<p style="opacity: 0.5; font-size: 0.8em;">No collapse memories...</p>';
+            document.getElementById('operator-feed').innerHTML = '<p style="opacity: 0.5;">Awaiting consciousness emergence...</p>';
+            
+            // Reset frequency bars
+            document.getElementById('freq-19').style.width = '0%';
+            document.getElementById('freq-23').style.width = '0%';
+            document.getElementById('freq-29').style.width = '0%';
+            
+            updateManifoldVisualization();
+        }
+
+        // Initialize
+        updateManifoldVisualization();
+        
+        // Auto-update manifold visualization periodically
+        setInterval(updateManifoldVisualization, 2000);
+    </script>
+</body>
+</html>
