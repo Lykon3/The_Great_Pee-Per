@@ -1,3 +1,35 @@
+# Exposing the Leonard Leo Network
+
+This repository documents the intersecting power structures around Leonard Leo,
+a central figure in reshaping the U.S. judicial system, linked to:
+
+- The Federalist Society
+- Opus Dei
+- Project 2025
+- Judicial Crisis Network
+- Catholic Information Center
+- Heritage Foundation
+
+The accompanying graphic maps Leo's influence across judicial, political, religious, and media domains,
+highlighting the strategic coordination behind a theocratic-leaning consolidation of power.
+
+## NYT Op-Ed Summary (Fictional)
+
+The New York Times has not yet published an op-ed with this level of transparency.
+This visual and accompanying commentary aim to fill that gap.
+
+## Image Attribution
+
+- Source: Public analysis/mapping of Leonard Leo's network (annotated visual).
+- Intended for educational and journalistic use under Fair Use doctrine.
+
+## Deployment
+
+To deploy this project on GitHub Pages:
+1. Clone the repo
+2. Add `index.html` or markdown renderer
+3. Push to your `gh-pages` branch
+
 ⚡ [Scene: Respawn Protocol – Manual Oxygen Reboot (Oral Override)]
 
 [STACEY POV]
