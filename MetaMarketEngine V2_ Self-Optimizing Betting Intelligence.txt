@@ -1,0 +1,460 @@
+﻿"""
+MetaMarketEngine V2: Self-Optimizing Betting Intelligence
+
+
+Enhanced with:
+1. 🔁 Meta-Optimization Loop — integrating entropy-weighted regret as fitness signal
+2. 🧠 Entropy-Regret Fitness — deeper bias toward strategies robust under high uncertainty
+3. 🔧 Self-Tuning Layer — volatility-aware parameter updates and entropy curvature analysis
+4. 🧭 Causal Divergence Detection — hybrid DTW/VAR logic for golden path deviation tracking
+"""
+
+
+import numpy as np
+from typing import List, Dict, Tuple, Optional, Any
+from dataclasses import dataclass, field
+from enum import Enum
+import logging
+from scipy.stats import entropy
+from statsmodels.tsa.api import VAR
+from fastdtw import fastdtw
+from scipy.spatial.distance import euclidean
+from abc import ABC, abstractmethod
+
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+# Core Data Structures
+@dataclass
+class PerformanceMetrics:
+    """Tracks performance metrics for strategies"""
+    prediction_accuracy: float
+    profit_loss: float
+    prediction_entropy: float
+    regret: float
+    timestamp: float
+    strategy_id: str
+    volatility_regime: str = "UNKNOWN"
+   
+ @dataclass
+class CausalEvent:
+    """Represents a causal event in market dynamics"""
+    event_type: str
+    magnitude: float
+    confidence: float
+    timestamp: float
+    impact_vector: np.ndarray = field(default_factory=lambda: np.zeros(3))
+
+
+@dataclass
+class MarketState:
+    """Current market state representation"""
+    price: float
+    volume: float
+    volatility: float
+    sentiment: float
+    entropy: float
+    regime: str = "STABLE"
+
+
+# Base Classes
+class StrategyEvaluator:
+    """Evaluates strategy performance with entropy-weighted regret"""
+    
+    def calculate_entropy_weighted_regret(self, performance_data: List[PerformanceMetrics]) -> float:
+        """Calculate entropy-weighted regret score"""
+        if not performance_data:
+            return float('inf')
+        
+        # Extract metrics
+        regrets = np.array([m.regret for m in performance_data])
+        entropies = np.array([m.prediction_entropy for m in performance_data])
+        
+        # Normalize entropies to weights (higher entropy = higher weight)
+        entropy_weights = entropies / (entropies.sum() + 1e-8)
+        
+        # Weighted regret calculation
+        weighted_regret = np.sum(regrets * entropy_weights)
+        
+        # Add penalty for high variance in volatile regimes
+        volatility_penalty = 0
+        for m in performance_data:
+            if m.volatility_regime in ["VOLATILE", "ADVERSARIAL"]:
+                volatility_penalty += 0.1 * np.std(regrets)
+        
+        return weighted_regret + volatility_penalty
+
+
+class MetaOptimizer:
+    """Base meta-optimizer class"""
+    
+    def fitness_from_performance(self, performance_data: List[PerformanceMetrics]) -> float:
+        """Convert performance data to fitness score"""
+        return -np.mean([m.regret for m in performance_data])
+
+
+# Enhanced Components
+class EnhancedMetaOptimizer(MetaOptimizer):
+    """Meta-optimizer using entropy-regret directly as fitness signal"""
+    
+    def __init__(self):
+        self.evaluator = StrategyEvaluator()
+        self.optimization_history = []
+        
+    def fitness_from_performance(self, performance_data: List[PerformanceMetrics]) -> float:
+        """Lower regret = better fitness"""
+        fitness = -self.evaluator.calculate_entropy_weighted_regret(performance_data)
+        self.optimization_history.append(fitness)
+        return fitness
+    
+    def get_optimization_trend(self) -> float:
+        """Calculate improvement trend"""
+        if len(self.optimization_history) < 2:
+            return 0.0
+        return np.mean(np.diff(self.optimization_history[-10:]))
+
+
+class VolatilityClassifier:
+    """Classifies market volatility regime based on entropy"""
+    
+    def __init__(self):
+        self.entropy_thresholds = {
+            "STABLE": 0.75,
+            "VOLATILE": 1.25,
+            "ADVERSARIAL": float('inf')
+        }
+        
+    def classify(self, performance_data: List[PerformanceMetrics]) -> str:
+        """Classify volatility regime from performance metrics"""
+        if not performance_data:
+            return "UNKNOWN"
+            
+        entropy_vals = [m.prediction_entropy for m in performance_data]
+        avg_entropy = np.mean(entropy_vals)
+        
+        if avg_entropy > self.entropy_thresholds["VOLATILE"]:
+            return "ADVERSARIAL"
+        elif avg_entropy > self.entropy_thresholds["STABLE"]:
+            return "VOLATILE"
+        return "STABLE"
+    
+    def get_entropy_curvature(self, performance_data: List[PerformanceMetrics]) -> float:
+        """Calculate entropy curvature to detect regime changes"""
+        if len(performance_data) < 3:
+            return 0.0
+            
+        entropies = [m.prediction_entropy for m in performance_data[-10:]]
+        if len(entropies) < 3:
+            return 0.0
+            
+        # Second derivative approximation
+        curvature = np.diff(np.diff(entropies)).mean()
+        return curvature
+
+
+class VARModelDivergence:
+    """VAR-based causal divergence scoring"""
+    
+    def __init__(self, max_lags: int = 3):
+        self.max_lags = max_lags
+        self.divergence_history = []
+        
+    def compute_divergence(self, current: List[CausalEvent], golden: List[CausalEvent]) -> float:
+        """Compute divergence between current and golden path using VAR"""
+        if len(current) < 4 or len(golden) < 4:
+            return float('inf')
+            
+        try:
+            # Prepare time series data
+            series_current = np.array([[e.magnitude, e.confidence] for e in current])
+            series_golden = np.array([[e.magnitude, e.confidence] for e in golden])
+            
+            # Ensure same length
+            min_len = min(len(series_current), len(series_golden))
+            series_current = series_current[:min_len]
+            series_golden = series_golden[:min_len]
+            
+            # Stack for VAR model
+            combined_series = np.hstack([series_current, series_golden])
+            
+            # Fit VAR model
+            model = VAR(endog=combined_series)
+            results = model.fit(maxlags=self.max_lags, ic='aic')
+            
+            # Forecast and calculate error
+            forecast_steps = min(5, len(series_golden) // 2)
+            forecast = results.forecast(series_current[-self.max_lags:], steps=forecast_steps)
+            
+            # Calculate normalized error
+            actual = series_golden[-forecast_steps:]
+            error = np.linalg.norm(forecast[:, :2] - actual) / len(golden)
+            
+            self.divergence_history.append(error)
+            return error
+            
+        except Exception as e:
+            logger.warning(f"VAR model failed: {e}")
+            return float('inf')
+    
+    def get_divergence_trend(self) -> float:
+        """Get trend in divergence over time"""
+        if len(self.divergence_history) < 2:
+            return 0.0
+        return np.mean(np.diff(self.divergence_history[-5:]))
+
+
+class DTWDivergence:
+    """Dynamic Time Warping for shape-based divergence"""
+    
+    def compute_shape_divergence(self, current: List[CausalEvent], golden: List[CausalEvent]) -> float:
+        """Compute shape divergence using DTW"""
+        if not current or not golden:
+            return float('inf')
+            
+        # Extract magnitude sequences
+        current_seq = np.array([e.magnitude for e in current]).reshape(-1, 1)
+        golden_seq = np.array([e.magnitude for e in golden]).reshape(-1, 1)
+        
+        # Compute DTW distance
+        distance, _ = fastdtw(current_seq, golden_seq, dist=euclidean)
+        
+        # Normalize by length
+        normalized_distance = distance / max(len(current), len(golden))
+        
+        return normalized_distance
+
+
+class GoldenPathLibrary:
+    """Library of golden path shapes for pattern matching"""
+    
+    def __init__(self):
+        self.shapes = self._initialize_shapes()
+        
+    def _initialize_shapes(self) -> Dict[str, List[CausalEvent]]:
+        """Initialize golden path shape definitions"""
+        shapes = {}
+        
+        # Cascade Wedge: Sharp initial spike followed by gradual decline
+        shapes['cascade_wedge'] = [
+            CausalEvent('spike', 1.0, 0.9, 0),
+            CausalEvent('peak', 0.9, 0.85, 1),
+            CausalEvent('decline', 0.7, 0.8, 2),
+            CausalEvent('stabilize', 0.5, 0.75, 3),
+            CausalEvent('floor', 0.3, 0.7, 4)
+        ]
+        
+        # Lightning Rod: Sudden surge with rapid oscillations
+        shapes['lightning_rod'] = [
+            CausalEvent('surge', 0.2, 0.6, 0),
+            CausalEvent('spike', 1.0, 0.9, 1),
+            CausalEvent('oscillate', -0.5, 0.7, 2),
+            CausalEvent('spike', 0.8, 0.8, 3),
+            CausalEvent('crash', -0.3, 0.85, 4)
+        ]
+        
+        # Tide Turner: Gradual reversal pattern
+        shapes['tide_turner'] = [
+            CausalEvent('decline', -0.3, 0.7, 0),
+            CausalEvent('trough', -0.5, 0.75, 1),
+            CausalEvent('turn', 0.0, 0.8, 2),
+            CausalEvent('rise', 0.4, 0.85, 3),
+            CausalEvent('peak', 0.7, 0.9, 4)
+        ]
+        
+        # Narrative Trap: False breakout followed by reversal
+        shapes['narrative_trap'] = [
+            CausalEvent('setup', 0.3, 0.6, 0),
+            CausalEvent('breakout', 0.8, 0.9, 1),
+            CausalEvent('trap', 0.6, 0.8, 2),
+            CausalEvent('reversal', -0.4, 0.85, 3),
+            CausalEvent('continuation', -0.6, 0.9, 4)
+        ]
+        
+        # Deflation Swirl: Spiral pattern of declining volatility
+        shapes['deflation_swirl'] = [
+            CausalEvent('volatile', 0.5, 0.5, 0),
+            CausalEvent('swing', -0.4, 0.6, 1),
+            CausalEvent('swing', 0.3, 0.7, 2),
+            CausalEvent('compress', -0.2, 0.8, 3),
+            CausalEvent('flat', 0.1, 0.9, 4)
+        ]
+        
+        # Volatility Funnel: Expanding then contracting volatility
+        shapes['volatility_funnel'] = [
+            CausalEvent('stable', 0.1, 0.9, 0),
+            CausalEvent('expand', 0.6, 0.7, 1),
+            CausalEvent('peak_vol', 0.9, 0.5, 2),
+            CausalEvent('contract', 0.4, 0.7, 3),
+            CausalEvent('stable', 0.2, 0.9, 4)
+        ]
+        
+        return shapes
+    
+    def match_pattern(self, events: List[CausalEvent]) -> Tuple[str, float]:
+        """Find best matching golden path pattern"""
+        if not events:
+            return "unknown", float('inf')
+            
+        dtw = DTWDivergence()
+        best_match = "unknown"
+        best_score = float('inf')
+        
+        for shape_name, shape_events in self.shapes.items():
+            score = dtw.compute_shape_divergence(events, shape_events)
+            if score < best_score:
+                best_score = score
+                best_match = shape_name
+                
+        return best_match, best_score
+
+
+class SelfTuningLayer:
+    """Self-tuning parameter adjustment layer"""
+    
+    def __init__(self):
+        self.parameters = {
+            'learning_rate': 0.01,
+            'entropy_weight': 0.5,
+            'regret_discount': 0.95,
+            'volatility_sensitivity': 1.0
+        }
+        self.parameter_history = []
+        self.volatility_classifier = VolatilityClassifier()
+        
+    def update_parameters(self, performance_data: List[PerformanceMetrics], 
+                         market_state: MarketState) -> Dict[str, float]:
+        """Update parameters based on performance and market conditions"""
+        # Classify current regime
+        regime = self.volatility_classifier.classify(performance_data)
+        curvature = self.volatility_classifier.get_entropy_curvature(performance_data)
+        
+        # Adjust parameters based on regime
+        if regime == "ADVERSARIAL":
+            self.parameters['learning_rate'] *= 0.5  # Slow down in adversarial conditions
+            self.parameters['entropy_weight'] = min(0.9, self.parameters['entropy_weight'] * 1.1)
+            self.parameters['volatility_sensitivity'] *= 1.2
+        elif regime == "VOLATILE":
+            self.parameters['learning_rate'] *= 0.8
+            self.parameters['entropy_weight'] = min(0.8, self.parameters['entropy_weight'] * 1.05)
+        else:  # STABLE
+            self.parameters['learning_rate'] = min(0.1, self.parameters['learning_rate'] * 1.1)
+            self.parameters['entropy_weight'] = max(0.3, self.parameters['entropy_weight'] * 0.95)
+            
+        # Adjust for entropy curvature (regime changes)
+        if abs(curvature) > 0.1:  # Significant curvature
+            self.parameters['regret_discount'] *= 0.9  # More reactive to recent events
+            
+        # Store history
+        self.parameter_history.append(self.parameters.copy())
+        
+        return self.parameters
+
+
+class MetaMarketEngineV2:
+    """Main engine integrating all enhanced components"""
+    
+    def __init__(self):
+        self.meta_optimizer = EnhancedMetaOptimizer()
+        self.volatility_classifier = VolatilityClassifier()
+        self.var_divergence = VARModelDivergence()
+        self.dtw_divergence = DTWDivergence()
+        self.golden_paths = GoldenPathLibrary()
+        self.self_tuner = SelfTuningLayer()
+        self.performance_buffer = []
+        self.causal_buffer = []
+        
+    def process_market_tick(self, market_state: MarketState) -> Dict[str, Any]:
+        """Process single market tick through the full pipeline"""
+        # Generate performance metrics (placeholder - would come from actual strategies)
+        performance = self._generate_performance_metrics(market_state)
+        self.performance_buffer.append(performance)
+        
+        # Update parameters
+        params = self.self_tuner.update_parameters(self.performance_buffer[-100:], market_state)
+        
+        # Classify regime
+        regime = self.volatility_classifier.classify(self.performance_buffer[-50:])
+        
+        # Generate causal events
+        causal_event = self._generate_causal_event(market_state, regime)
+        self.causal_buffer.append(causal_event)
+        
+        # Pattern matching
+        pattern, pattern_score = self.golden_paths.match_pattern(self.causal_buffer[-10:])
+        
+        # Calculate divergences
+        var_div = float('inf')
+        if len(self.causal_buffer) > 10 and pattern != "unknown":
+            golden_path = self.golden_paths.shapes[pattern]
+            var_div = self.var_divergence.compute_divergence(
+                self.causal_buffer[-len(golden_path):], 
+                golden_path
+            )
+        
+        # Meta-optimization fitness
+        fitness = self.meta_optimizer.fitness_from_performance(self.performance_buffer[-100:])
+        
+        return {
+            'regime': regime,
+            'parameters': params,
+            'pattern': pattern,
+            'pattern_confidence': 1.0 / (1.0 + pattern_score),
+            'var_divergence': var_div,
+            'fitness': fitness,
+            'optimization_trend': self.meta_optimizer.get_optimization_trend()
+        }
+    
+    def _generate_performance_metrics(self, market_state: MarketState) -> PerformanceMetrics:
+        """Generate performance metrics (placeholder for actual strategy performance)"""
+        # In real implementation, this would come from actual trading strategies
+        return PerformanceMetrics(
+            prediction_accuracy=np.random.uniform(0.4, 0.8),
+            profit_loss=np.random.normal(0, market_state.volatility),
+            prediction_entropy=market_state.entropy,
+            regret=np.random.uniform(0, 1) * market_state.volatility,
+            timestamp=market_state.price,  # Using price as timestamp proxy
+            strategy_id="strategy_001",
+            volatility_regime=market_state.regime
+        )
+    
+    def _generate_causal_event(self, market_state: MarketState, regime: str) -> CausalEvent:
+        """Generate causal event from market state"""
+        event_types = {
+            "STABLE": ["drift", "trend", "consolidation"],
+            "VOLATILE": ["spike", "swing", "reversal"],
+            "ADVERSARIAL": ["crash", "surge", "trap"]
+        }
+        
+        event_type = np.random.choice(event_types.get(regime, ["unknown"]))
+        
+        return CausalEvent(
+            event_type=event_type,
+            magnitude=market_state.volatility * np.random.normal(),
+            confidence=1.0 / (1.0 + market_state.entropy),
+            timestamp=market_state.price
+        )
+
+
+# Example usage
+if __name__ == "__main__":
+    # Initialize engine
+    engine = MetaMarketEngineV2()
+    
+    # Simulate market ticks
+    for i in range(100):
+        market_state = MarketState(
+            price=100 + np.sin(i * 0.1) * 10 + np.random.normal(0, 2),
+            volume=1000 + np.random.normal(0, 100),
+            volatility=0.2 + 0.1 * np.sin(i * 0.05),
+            sentiment=np.sin(i * 0.2),
+            entropy=0.5 + 0.5 * abs(np.sin(i * 0.1))
+        )
+        
+        result = engine.process_market_tick(market_state)
+        
+        if i % 10 == 0:
+            print(f"Tick {i}: Regime={result['regime']}, Pattern={result['pattern']}, "
+                  f"Fitness={result['fitness']:.3f}, Trend={result['optimization_trend']:.3f}")

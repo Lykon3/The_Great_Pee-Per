@@ -1,0 +1,607 @@
+﻿"""
+Adversarial Market Dynamics Detector
+Identifies when the market is adapting to YOUR strategies
+"""
+
+
+import numpy as np
+import pandas as pd
+from scipy import stats
+from sklearn.ensemble import IsolationForest
+from typing import Dict, List, Tuple, Optional
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+import networkx as nx
+from collections import defaultdict
+
+
+
+
+@dataclass
+class MarketResponse:
+    """Tracks how the market responds to your betting patterns"""
+    timestamp: datetime
+    bet_type: str
+    edge_detected: float
+    market_adjustment_speed: float
+    counter_movement: bool
+    trap_probability: float
+
+
+
+
+class AdversarialMarketDetector:
+    """
+    Detects when the market is actively countering your strategies.
+    Think of it as the market's immune system responding to profitable patterns.
+    """
+    
+    def __init__(self, paranoia_level: float = 0.7):
+        self.paranoia_level = paranoia_level  # How suspicious to be
+        self.betting_history = []
+        self.market_responses = []
+        self.trap_detector = TrapLineDetector()
+        self.strategy_fingerprints = {}
+        self.market_learning_rate = 0.0
+        
+    def analyze_market_adaptation(self, your_bets: pd.DataFrame, 
+                                 market_movements: pd.DataFrame) -> Dict:
+        """
+        Core analysis: Is the market learning to counter your edge?
+        """
+        
+        # 1. Detect strategy fingerprints
+        fingerprints = self._extract_strategy_fingerprints(your_bets)
+        
+        # 2. Analyze market counter-adaptation
+        adaptation_metrics = self._measure_market_adaptation(
+            your_bets, market_movements
+        )
+        
+        # 3. Identify potential trap lines
+        trap_analysis = self.trap_detector.scan_for_traps(
+            market_movements, your_bets
+        )
+        
+        # 4. Calculate market learning rate
+        learning_curve = self._calculate_market_learning_rate(
+            your_bets, market_movements
+        )
+        
+        # 5. Detect adversarial patterns
+        adversarial_signals = self._detect_adversarial_patterns(
+            market_movements, your_bets
+        )
+        
+        return {
+            'market_adaptation_score': adaptation_metrics['adaptation_score'],
+            'trap_lines_detected': trap_analysis['trap_count'],
+            'market_learning_rate': learning_curve['learning_rate'],
+            'adversarial_probability': adversarial_signals['probability'],
+            'recommended_actions': self._generate_countermeasures(
+                adaptation_metrics, trap_analysis, adversarial_signals
+            ),
+            'strategy_compromise_level': self._assess_strategy_compromise(
+                fingerprints, market_movements
+            )
+        }
+    
+    def _extract_strategy_fingerprints(self, your_bets: pd.DataFrame) -> Dict:
+        """Identify patterns that could reveal your strategy"""
+        
+        fingerprints = {
+            'timing_patterns': self._analyze_bet_timing(your_bets),
+            'size_patterns': self._analyze_bet_sizing(your_bets),
+            'market_selection': self._analyze_market_preferences(your_bets),
+            'edge_thresholds': self._analyze_edge_requirements(your_bets),
+            'correlation_clusters': self._find_bet_correlations(your_bets)
+        }
+        
+        # Calculate uniqueness score (how identifiable you are)
+        uniqueness = np.mean([
+            fp['uniqueness'] for fp in fingerprints.values() 
+            if 'uniqueness' in fp
+        ])
+        
+        fingerprints['overall_uniqueness'] = uniqueness
+        
+        return fingerprints
+    
+    def _measure_market_adaptation(self, your_bets: pd.DataFrame,
+                                  market_movements: pd.DataFrame) -> Dict:
+        """Measure how quickly the market closes your edges"""
+        
+        # Track edge decay over time
+        edge_decay_rates = []
+        
+        for strategy in your_bets['strategy_type'].unique():
+            strategy_bets = your_bets[your_bets['strategy_type'] == strategy]
+            
+            # Measure how quickly your edge disappears after you bet
+            for _, bet in strategy_bets.iterrows():
+                # Find market movement after your bet
+                post_bet_movement = market_movements[
+                    (market_movements['game_id'] == bet['game_id']) &
+                    (market_movements['timestamp'] > bet['timestamp'])
+                ]
+                
+                if len(post_bet_movement) > 0:
+                    # Calculate how fast the line moved against you
+                    edge_erosion = self._calculate_edge_erosion(
+                        bet, post_bet_movement
+                    )
+                    edge_decay_rates.append(edge_erosion)
+        
+        # Statistical analysis of adaptation
+        if edge_decay_rates:
+            adaptation_score = np.mean(edge_decay_rates)
+            adaptation_acceleration = np.gradient(edge_decay_rates).mean()
+        else:
+            adaptation_score = 0.0
+            adaptation_acceleration = 0.0
+        
+        return {
+            'adaptation_score': adaptation_score,
+            'adaptation_acceleration': adaptation_acceleration,
+            'strategies_compromised': self._identify_compromised_strategies(
+                edge_decay_rates, your_bets
+            )
+        }
+    
+    def _calculate_edge_erosion(self, bet: pd.Series, 
+                               movements: pd.DataFrame) -> float:
+        """Calculate how quickly an edge erodes after betting"""
+        
+        initial_edge = bet['detected_edge']
+        
+        # Track edge over time
+        edges_over_time = []
+        for _, movement in movements.iterrows():
+            current_line = movement['line']
+            fair_value = bet['fair_value']
+            
+            # Recalculate edge with new line
+            if bet['bet_type'] == 'spread':
+                current_edge = fair_value - current_line
+            elif bet['bet_type'] == 'total':
+                if bet['position'] == 'over':
+                    current_edge = current_line - fair_value
+                else:
+                    current_edge = fair_value - current_line
+            else:
+                current_edge = initial_edge  # Default
+            
+            edges_over_time.append(abs(current_edge))
+        
+        if edges_over_time:
+            # Calculate decay rate (how fast edge goes to zero)
+            time_to_zero = next(
+                (i for i, edge in enumerate(edges_over_time) if edge < 0.5),
+                len(edges_over_time)
+            )
+            decay_rate = 1.0 / (time_to_zero + 1)
+            return decay_rate
+        
+        return 0.0
+
+
+
+
+class TrapLineDetector:
+    """Detects when lines are set as 'traps' to exploit known betting patterns"""
+    
+    def __init__(self):
+        self.historical_traps = []
+        self.trap_patterns = {
+            'too_good_to_be_true': self._detect_tgtbt_trap,
+            'reverse_psychology': self._detect_reverse_trap,
+            'steam_chase': self._detect_steam_trap,
+            'square_magnet': self._detect_square_trap
+        }
+    
+    def scan_for_traps(self, market_data: pd.DataFrame,
+                       your_betting_patterns: pd.DataFrame) -> Dict:
+        """Scan current lines for potential traps"""
+        
+        trap_signals = []
+        
+        for game_id in market_data['game_id'].unique():
+            game_lines = market_data[market_data['game_id'] == game_id]
+            
+            # Check each trap pattern
+            for trap_name, trap_func in self.trap_patterns.items():
+                trap_score = trap_func(game_lines, your_betting_patterns)
+                
+                if trap_score > 0.7:  # High trap probability
+                    trap_signals.append({
+                        'game_id': game_id,
+                        'trap_type': trap_name,
+                        'probability': trap_score,
+                        'recommended_action': self._get_trap_countermeasure(trap_name)
+                    })
+        
+        return {
+            'trap_count': len(trap_signals),
+            'high_risk_games': trap_signals,
+            'trap_exposure': self._calculate_trap_exposure(
+                trap_signals, your_betting_patterns
+            )
+        }
+    
+    def _detect_tgtbt_trap(self, game_lines: pd.DataFrame,
+                          your_patterns: pd.DataFrame) -> float:
+        """Detect 'too good to be true' trap lines"""
+        
+        # Current line vs. historical similar games
+        current_line = game_lines.iloc[-1]['line']
+        
+        # Check if line is >2 stdev from expected
+        historical_similar = your_patterns[
+            your_patterns['situation_cluster'] == game_lines.iloc[0].get('cluster', 0)
+        ]
+        
+        if len(historical_similar) > 10:
+            expected_line = historical_similar['line'].mean()
+            line_std = historical_similar['line'].std()
+            
+            if line_std > 0:
+                z_score = abs(current_line - expected_line) / line_std
+                if z_score > 2.5:
+                    # Check if movement is in direction you typically bet
+                    your_typical_side = historical_similar['bet_side'].mode()[0]
+                    if self._line_favors_side(current_line, expected_line, your_typical_side):
+                        return min(z_score / 4, 1.0)  # Normalize to [0,1]
+        
+        return 0.0
+    
+    def _detect_reverse_trap(self, game_lines: pd.DataFrame,
+                            your_patterns: pd.DataFrame) -> float:
+        """Detect reverse psychology traps"""
+        
+        # Look for lines that move opposite to sharp action
+        sharp_percentage = game_lines.iloc[-1].get('sharp_percentage', 50)
+        line_movement = game_lines['line'].diff().sum()
+        
+        # If sharps are on one side but line moves other way
+        if sharp_percentage > 70 and line_movement < -0.5:
+            return 0.8
+        elif sharp_percentage < 30 and line_movement > 0.5:
+            return 0.8
+        
+        return 0.0
+    
+    def _detect_steam_trap(self, game_lines: pd.DataFrame,
+                          your_patterns: pd.DataFrame) -> float:
+        """Detect manufactured steam moves designed to trap chasers"""
+        
+        # Look for sudden, aggressive line movement
+        if len(game_lines) < 3:
+            return 0.0
+        
+        recent_movement = game_lines['line'].iloc[-3:].diff()
+        movement_speed = recent_movement.abs().mean()
+        
+        # Check if movement is unusually fast
+        if movement_speed > 1.0:  # More than 1 point per timestamp
+            # Check if it reverses quickly (sign of manufactured move)
+            if len(game_lines) > 5:
+                reversal = (recent_movement.iloc[-1] * recent_movement.iloc[-2]) < 0
+                if reversal:
+                    return 0.9
+            return 0.6
+        
+        return 0.0
+
+
+
+
+class MarketImmuneSystem:
+    """Models how the market develops 'immunity' to profitable strategies"""
+    
+    def __init__(self):
+        self.strategy_exposure_history = defaultdict(list)
+        self.immunity_levels = {}
+        self.mutation_tracker = StrategyMutationTracker()
+        
+    def update_exposure(self, strategy_id: str, 
+                       profitability: float,
+                       market_response_time: float):
+        """Track how exposed a strategy is to market adaptation"""
+        
+        exposure_event = {
+            'timestamp': datetime.now(),
+            'profitability': profitability,
+            'response_time': market_response_time,
+            'detection_risk': self._calculate_detection_risk(
+                strategy_id, profitability, market_response_time
+            )
+        }
+        
+        self.strategy_exposure_history[strategy_id].append(exposure_event)
+        
+        # Update immunity level
+        self.immunity_levels[strategy_id] = self._calculate_immunity_level(
+            self.strategy_exposure_history[strategy_id]
+        )
+    
+    def _calculate_immunity_level(self, exposure_history: List[Dict]) -> float:
+        """Calculate how 'immune' the market is to this strategy"""
+        
+        if len(exposure_history) < 3:
+            return 0.0
+        
+        # Recent exposures matter more
+        weights = np.exp(-0.1 * np.arange(len(exposure_history)))
+        weights = weights[::-1] / weights.sum()
+        
+        # Calculate weighted detection risk
+        detection_risks = [e['detection_risk'] for e in exposure_history]
+        weighted_risk = np.average(detection_risks[-10:], weights=weights[-10:])
+        
+        # Check if profitability is declining (sign of immunity)
+        recent_profits = [e['profitability'] for e in exposure_history[-10:]]
+        if len(recent_profits) > 3:
+            profit_trend = np.polyfit(range(len(recent_profits)), recent_profits, 1)[0]
+            if profit_trend < -0.01:  # Declining profitability
+                weighted_risk *= 1.5
+        
+        return min(weighted_risk, 1.0)
+    
+    def suggest_strategy_mutation(self, strategy_id: str) -> Dict:
+        """Suggest how to evolve a strategy to avoid detection"""
+        
+        if strategy_id not in self.immunity_levels:
+            return {'mutation_needed': False}
+        
+        immunity = self.immunity_levels[strategy_id]
+        
+        if immunity > 0.7:
+            return {
+                'mutation_needed': True,
+                'urgency': 'high',
+                'suggestions': [
+                    'Add noise to bet timing (random delays)',
+                    'Vary bet sizing with decoy patterns',
+                    'Split strategy across multiple accounts',
+                    'Introduce false signals to confuse trackers',
+                    'Rotate between correlated but different markets'
+                ],
+                'recommended_cooldown': 14  # days
+            }
+        elif immunity > 0.4:
+            return {
+                'mutation_needed': True,
+                'urgency': 'medium',
+                'suggestions': [
+                    'Reduce bet frequency by 30%',
+                    'Add 10-20% random noise to signals',
+                    'Diversify into adjacent markets'
+                ],
+                'recommended_cooldown': 7
+            }
+        
+        return {'mutation_needed': False}
+
+
+
+
+class StrategyMutationTracker:
+    """Tracks how strategies evolve to avoid detection"""
+    
+    def __init__(self):
+        self.mutation_history = []
+        self.successful_mutations = []
+        
+    def record_mutation(self, original_strategy: Dict,
+                       mutated_strategy: Dict,
+                       success_metrics: Dict):
+        """Record a strategy mutation attempt"""
+        
+        mutation_record = {
+            'timestamp': datetime.now(),
+            'original': original_strategy,
+            'mutated': mutated_strategy,
+            'changes': self._identify_changes(original_strategy, mutated_strategy),
+            'success_metrics': success_metrics
+        }
+        
+        self.mutation_history.append(mutation_record)
+        
+        if success_metrics.get('profitability_retained', 0) > 0.8:
+            self.successful_mutations.append(mutation_record)
+    
+    def get_successful_mutation_patterns(self) -> List[Dict]:
+        """Extract patterns from successful mutations"""
+        
+        if len(self.successful_mutations) < 5:
+            return []
+        
+        patterns = []
+        
+        # Analyze what changes tend to work
+        change_success_rates = defaultdict(list)
+        
+        for mutation in self.successful_mutations:
+            for change_type in mutation['changes']:
+                success_rate = mutation['success_metrics']['profitability_retained']
+                change_success_rates[change_type].append(success_rate)
+        
+        # Identify high-success patterns
+        for change_type, success_rates in change_success_rates.items():
+            avg_success = np.mean(success_rates)
+            if avg_success > 0.85:
+                patterns.append({
+                    'change_type': change_type,
+                    'success_rate': avg_success,
+                    'sample_size': len(success_rates)
+                })
+        
+        return sorted(patterns, key=lambda x: x['success_rate'], reverse=True)
+
+
+
+
+class AdversarialDefenseSystem:
+    """Comprehensive defense against market adaptation"""
+    
+    def __init__(self):
+        self.detector = AdversarialMarketDetector()
+        self.immune_system = MarketImmuneSystem()
+        self.decoy_generator = DecoySignalGenerator()
+        
+    def protect_strategy(self, strategy: Dict, 
+                        market_data: pd.DataFrame) -> Dict:
+        """Apply protective measures to maintain edge"""
+        
+        # 1. Assess current threat level
+        threat_assessment = self.detector.analyze_market_adaptation(
+            strategy['historical_bets'],
+            market_data
+        )
+        
+        # 2. Check immunity levels
+        immunity = self.immune_system.immunity_levels.get(
+            strategy['id'], 0.0
+        )
+        
+        # 3. Generate protection plan
+        protection_plan = {
+            'threat_level': threat_assessment['adversarial_probability'],
+            'immunity_level': immunity,
+            'countermeasures': []
+        }
+        
+        # 4. Apply countermeasures based on threat
+        if threat_assessment['adversarial_probability'] > 0.7:
+            # High threat - aggressive countermeasures
+            protection_plan['countermeasures'].extend([
+                self._apply_timing_noise(strategy),
+                self._generate_decoy_bets(strategy),
+                self._implement_strategy_rotation(strategy),
+                self._add_anti_fingerprinting(strategy)
+            ])
+        elif threat_assessment['adversarial_probability'] > 0.4:
+            # Medium threat - moderate countermeasures
+            protection_plan['countermeasures'].extend([
+                self._apply_bet_sizing_variation(strategy),
+                self._implement_market_diversification(strategy)
+            ])
+        
+        # 5. Evolution recommendations
+        if immunity > 0.6:
+            mutation_plan = self.immune_system.suggest_strategy_mutation(
+                strategy['id']
+            )
+            protection_plan['evolution_needed'] = mutation_plan
+        
+        return protection_plan
+    
+    def _apply_timing_noise(self, strategy: Dict) -> Dict:
+        """Add random delays to bet placement"""
+        return {
+            'measure': 'timing_noise',
+            'description': 'Add 5-45 minute random delays',
+            'implementation': {
+                'min_delay': 300,  # seconds
+                'max_delay': 2700,
+                'distribution': 'exponential'
+            }
+        }
+    
+    def _generate_decoy_bets(self, strategy: Dict) -> Dict:
+        """Create false signals to confuse pattern detection"""
+        return {
+            'measure': 'decoy_generation',
+            'description': 'Place 15-20% decoy bets with small stakes',
+            'implementation': {
+                'decoy_rate': 0.175,
+                'decoy_size': 0.1,  # 10% of normal size
+                'decoy_markets': ['opposite_side', 'correlated_games', 'props']
+            }
+        }
+
+
+
+
+class DecoySignalGenerator:
+    """Generates false signals to protect real strategies"""
+    
+    def generate_decoys(self, real_signal: Dict, count: int = 3) -> List[Dict]:
+        """Generate believable but false signals"""
+        
+        decoys = []
+        
+        for i in range(count):
+            decoy = {
+                'game_id': self._select_correlated_game(real_signal),
+                'signal_strength': real_signal['signal_strength'] * np.random.uniform(0.5, 0.8),
+                'bet_size': real_signal['bet_size'] * 0.1,
+                'timing_offset': np.random.randint(-1800, 1800),  # +/- 30 minutes
+                'is_decoy': True,
+                'decoy_purpose': self._assign_decoy_purpose(i)
+            }
+            decoys.append(decoy)
+        
+        return decoys
+    
+    def _select_correlated_game(self, real_signal: Dict) -> str:
+        """Select a game that could plausibly be related"""
+        # Implementation would select games with similar characteristics
+        # (same conference, similar spreads, etc.)
+        return f"DECOY_GAME_{np.random.randint(1000, 9999)}"
+    
+    def _assign_decoy_purpose(self, index: int) -> str:
+        """Assign strategic purpose to each decoy"""
+        purposes = [
+            'timing_obfuscation',  # Hide real bet timing
+            'size_masking',        # Hide real bet sizing patterns
+            'strategy_confusion'   # Make strategy harder to reverse-engineer
+        ]
+        return purposes[index % len(purposes)]
+
+
+
+
+# Practical usage example
+if __name__ == "__main__":
+    # Initialize the defense system
+    defense = AdversarialDefenseSystem()
+    
+    # Simulate your betting history
+    your_bets = pd.DataFrame({
+        'timestamp': pd.date_range(start='2024-01-01', periods=100, freq='D'),
+        'game_id': [f'GAME_{i}' for i in range(100)],
+        'strategy_type': np.random.choice(['sharp_fade', 'injury_arb', 'weather_edge'], 100),
+        'detected_edge': np.random.uniform(0.02, 0.08, 100),
+        'bet_size': np.random.uniform(100, 1000, 100),
+        'result': np.random.choice([1, -1], 100, p=[0.55, 0.45])  # 55% win rate
+    })
+    
+    # Simulate market data
+    market_data = pd.DataFrame({
+        'timestamp': pd.date_range(start='2024-01-01', periods=500, freq='6H'),
+        'game_id': np.random.choice([f'GAME_{i}' for i in range(100)], 500),
+        'line': np.random.uniform(-7, 7, 500),
+        'total': np.random.uniform(40, 55, 500),
+        'sharp_percentage': np.random.uniform(20, 80, 500)
+    })
+    
+    # Run analysis
+    strategy = {
+        'id': 'sharp_fade_v2',
+        'historical_bets': your_bets
+    }
+    
+    protection_plan = defense.protect_strategy(strategy, market_data)
+    
+    print("=== ADVERSARIAL MARKET ANALYSIS ===")
+    print(f"Threat Level: {protection_plan['threat_level']:.2%}")
+    print(f"Market Immunity: {protection_plan['immunity_level']:.2%}")
+    print(f"\nRecommended Countermeasures: {len(protection_plan['countermeasures'])}")
+    
+    for measure in protection_plan['countermeasures']:
+        print(f"- {measure['description']}")
+    
+    if 'evolution_needed' in protection_plan:
+        print(f"\n⚠️ STRATEGY EVOLUTION REQUIRED")
+        print(f"Urgency: {protection_plan['evolution_needed']['urgency']}")

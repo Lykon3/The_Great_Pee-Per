@@ -1,0 +1,215 @@
+﻿engine/kalman/filter.py
+This module establishes the KalmanFilter for tracking the latent state (i.e., true power rating) of each team. It's designed to handle week-to-week updates and incorporates a regression-to-the-mean component.
+# engine/kalman/filter.py
+
+import numpy as np
+
+class KalmanFilter:
+   """
+   A Kalman Filter to model the latent strength of an NFL team.
+   The state is a single value representing the team's power rating.
+   """
+   def __init__(self, process_variance, measurement_variance, initial_rating=0, initial_uncertainty=10):
+       """
+       Initializes the Kalman Filter for a single team.
+
+       Args:
+           process_variance (float): How much we expect a team's true rating to drift week-to-week.
+                                     Represents team improvement/decline, momentum, etc.
+           measurement_variance (float): How much noise is in a single game outcome (e.g., luck, randomness).
+           initial_rating (float): The starting power rating for the team (e.g., 0 for an average team).
+           initial_uncertainty (float): The initial uncertainty (P) of our rating. High for the start of a season.
+       """
+       self.process_variance = process_variance
+       self.measurement_variance = measurement_variance
+       
+       # State estimate (x_hat): The team's power rating
+       self.x_hat = initial_rating
+       
+       # Estimate uncertainty (P): The variance of our state estimate
+       self.P = initial_uncertainty
+
+   def predict(self, regression_target=0, regression_strength=0.02):
+       """
+       Predicts the team's state for the next time step (the upcoming game).
+       The state naturally drifts by the process variance and also regresses to a mean.
+       """
+       # State prediction
+       self.x_hat = (1 - regression_strength) * self.x_hat + regression_strength * regression_target
+       
+       # Uncertainty prediction
+       self.P = self.P + self.process_variance
+
+   def update(self, measurement):
+       """
+       Updates the team's state based on a new measurement (a game outcome).
+
+       Args:
+           measurement (float): The observed performance in a game (e.g., margin of victory adjusted for HFA).
+       """
+       # Kalman Gain (K)
+       K = self.P / (self.P + self.measurement_variance)
+       
+       # State update
+       self.x_hat = self.x_hat + K * (measurement - self.x_hat)
+       
+       # Uncertainty update
+       self.P = (1 - K) * self.P
+
+
+engine/kalman/light_cone.py
+The Light Cone module is responsible for propagating discrete, high-impact shocks (like a QB injury) through the system. It directly adjusts a team's Kalman state.
+# engine/kalman/light_cone.py
+
+from .filter import KalmanFilter
+
+def apply_shock(team_filter: KalmanFilter, shock_value: float, shock_uncertainty_factor: float = 1.5):
+   """
+   Applies an external shock to a team's Kalman Filter state.
+
+   This can be used for injuries, sudden coaching changes, or other major news.
+   The shock directly adjusts the team's power rating and increases its uncertainty.
+
+   Args:
+       team_filter (KalmanFilter): The Kalman filter instance for the team being shocked.
+       shock_value (float): The estimated point spread impact of the shock. 
+                            (e.g., -5.5 for a starting QB injury).
+       shock_uncertainty_factor (float): Multiplier to increase the state uncertainty (P) due to the shock.
+                                         Represents the increased unpredictability of the team.
+   
+   Returns:
+       KalmanFilter: The updated KalmanFilter object.
+   """
+   print(f"Applying shock of {shock_value} to team state. Old rating: {team_filter.x_hat:.2f}")
+   
+   # Directly adjust the state estimate by the shock value
+   team_filter.x_hat += shock_value
+   
+   # Increase the uncertainty of the estimate
+   team_filter.P *= shock_uncertainty_factor
+   
+   print(f"New rating: {team_filter.x_hat:.2f}, New uncertainty: {team_filter.P:.2f}")
+   
+   return team_filter
+
+
+engine/causal/dag_builder.py
+This defines the causal relationships between key variables. While not a runnable model itself, it provides the intellectual blueprint for how variables influence each other, guiding the analysis.
+# engine/causal/dag_builder.py
+
+class CausalDAG:
+   """
+   Defines the Directed Acyclic Graph (DAG) representing the causal relationships
+   influencing an NFL game's point spread.
+   
+   This class serves as a conceptual model and a guide for feature engineering
+   and shock analysis.
+   """
+   def __init__(self):
+       self.graph = {
+           'Weather': ['Point_Spread'],
+           'QB_Status': ['Team_Power_Rating', 'Public_Bias'],
+           'Team_Power_Rating': ['Point_Spread'],
+           'Home_Field_Advantage': ['Point_Spread'],
+           'Public_Bias': ['Line_Movement'],
+           'Sharp_Money_Action': ['Line_Movement'],
+           'Line_Movement': ['Final_Line'],
+           'Point_Spread': ['Final_Line']
+       }
+       self.description = "Causal graph for NFL game outcomes and betting markets."
+
+   def get_parents(self, node):
+       """Finds the direct causes (parents) of a given node."""
+       parents = [key for key, values in self.graph.items() if node in values]
+       return parents
+
+   def display_causal_paths(self, start_node, end_node):
+       """Illustrates the causal pathways from a starting variable to an ending variable."""
+       # (Implementation for graph traversal would be included here for advanced analysis)
+       print(f"Illustrating causal path from {start_node} to {end_node}")
+       # Example: Weather -> Point_Spread -> Final_Line
+
+
+engine/causal/public_bias.py
+This module analyzes betting percentages to tease apart public sentiment from sharp, informed money.
+# engine/causal/public_bias.py
+
+def detect_sharp_action(bet_tickets_pct: float, money_wagered_pct: float, ticket_threshold: float = 0.7):
+   """
+   Detects potential sharp money action by comparing bet ticket percentage to money percentage.
+
+   A significant discrepancy suggests that larger, potentially "sharper" bets
+   are on one side, against the smaller bets of the general public.
+
+   Args:
+       bet_tickets_pct (float): The percentage of total bets (tickets) on a side (e.g., 0.8 for 80%).
+       money_wagered_pct (float): The percentage of total money on the same side (e.g., 0.4 for 40%).
+       ticket_threshold (float): The percentage of public bets required to define a "public side".
+
+   Returns:
+       tuple[str, float] or tuple[None, None]: The direction of sharp money ('fade' or 'follow') 
+                                               and the discrepancy, or None if no clear signal.
+   """
+   if bet_tickets_pct >= ticket_threshold and money_wagered_pct < (1 - bet_tickets_pct) + 0.1:
+       # High percentage of tickets, but lower percentage of money
+       discrepancy = bet_tickets_pct - money_wagered_pct
+       return 'fade_public', discrepancy
+   
+   side_with_low_tickets = 1 - bet_tickets_pct
+   if side_with_low_tickets > 0 and money_wagered_pct > bet_tickets_pct:
+       # The side with fewer tickets has a higher percentage of the money
+       discrepancy = money_wagered_pct - bet_tickets_pct
+       return 'follow_sharps', discrepancy
+
+   return None, None
+
+
+engine/vegas/decoder.py
+The Vegas Decoder is responsible for extracting meaningful signals, like implied power ratings, directly from market odds.
+# engine/vegas/decoder.py
+
+def extract_implied_power_ratings(home_team: str, away_team: str, spread: float, home_field_advantage: float = 2.5):
+   """
+   Reverse-engineers team power ratings from a given point spread.
+
+   The spread is assumed to be: (Away Team Rating) - (Home Team Rating + HFA)
+   A negative spread means the home team is favored.
+
+   Args:
+       home_team (str): Name of the home team.
+       away_team (str): Name of the away team.
+       spread (float): The betting line for the away team (e.g., +6.5, -3.0).
+       home_field_advantage (float): The estimated point value of playing at home.
+
+   Returns:
+       dict: A dictionary with the implied rating difference.
+   """
+   # spread = away_rating - home_rating. So, home_rating - away_rating = -spread
+   implied_rating_difference = -spread - home_field_advantage
+   
+   return {
+       "home_team": home_team,
+       "away_team": away_team,
+       "implied_home_adv_over_away": implied_rating_difference
+   }
+
+def track_line_movement(opening_line: float, current_line: float, threshold: float = 1.5):
+   """
+   Identifies significant line movement that could indicate sharp action or major news.
+
+   Args:
+       opening_line (float): The initial point spread.
+       current_line (float): The current point spread.
+       threshold (float): The minimum point change to be considered significant.
+
+   Returns:
+       str or None: Description of the line movement if it meets the threshold.
+   """
+   movement = current_line - opening_line
+   if abs(movement) >= threshold:
+       direction = "in favor of home team" if movement < 0 else "in favor of away team"
+       return f"Significant line movement of {movement:.1f} points {direction}."
+   return None
+
+
+The core engine logic is now in place. The system is ready to ingest data, run simulations, and propagate causal shocks. We are prepared for Phase 2.

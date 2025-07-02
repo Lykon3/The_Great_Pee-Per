@@ -1,0 +1,504 @@
+﻿"""
+Information Half-Life Engine
+A critical missing component for modeling temporal information value decay
+"""
+
+
+import numpy as np
+import pandas as pd
+from scipy.optimize import curve_fit
+from typing import Dict, List, Tuple, Optional
+from dataclasses import dataclass
+from enum import Enum
+import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
+
+
+
+
+class InformationType(Enum):
+    """Categories of information with distinct decay characteristics"""
+    INJURY_REPORT = "injury"
+    WEATHER_UPDATE = "weather"
+    SHARP_ACTION = "sharp"
+    PUBLIC_SENTIMENT = "public"
+    REFEREE_ASSIGNMENT = "referee"
+    COACHING_CHANGE = "coaching"
+    NARRATIVE_SHIFT = "narrative"
+
+
+
+
+@dataclass
+class InformationEvent:
+    """Represents a piece of information entering the market"""
+    timestamp: datetime
+    info_type: InformationType
+    magnitude: float  # -1 to 1, strength/direction of signal
+    source_credibility: float  # 0 to 1
+    market_surprise: float  # 0 to 1, how unexpected
+    metadata: Dict
+
+
+
+
+class DecayFunction:
+    """Models how information value decays over time"""
+   
+    @staticmethod
+    def exponential(t, initial_value, half_life):
+        """Standard exponential decay"""
+        return initial_value * np.exp(-np.log(2) * t / half_life)
+   
+    @staticmethod
+    def power_law(t, initial_value, alpha, beta):
+        """Power law decay for fat-tailed information"""
+        return initial_value / (1 + beta * t) ** alpha
+   
+    @staticmethod
+    def sigmoid_decay(t, initial_value, midpoint, steepness):
+        """S-curve decay for threshold effects"""
+        return initial_value / (1 + np.exp(steepness * (t - midpoint)))
+   
+    @staticmethod
+    def oscillating_decay(t, initial_value, decay_rate, frequency):
+        """Decay with periodic resurgence (e.g., weekly patterns)"""
+        return initial_value * np.exp(-decay_rate * t) * (1 + 0.3 * np.sin(2 * np.pi * frequency * t))
+
+
+
+
+class InformationHalfLifeEngine:
+    """
+    Models the temporal decay of information value in betting markets.
+    Integrates with Kalman filters to adjust observation noise dynamically.
+    """
+    
+    def __init__(self):
+        # Calibrated decay parameters by information type
+        self.decay_params = {
+            InformationType.INJURY_REPORT: {
+                'function': 'exponential',
+                'base_half_life': 72,  # hours
+                'severity_modifier': lambda sev: 1 + 2 * sev  # More severe = longer lasting
+            },
+            InformationType.WEATHER_UPDATE: {
+                'function': 'sigmoid_decay',
+                'base_midpoint': 24,  # hours before game
+                'steepness': 0.2
+            },
+            InformationType.SHARP_ACTION: {
+                'function': 'power_law',
+                'alpha': 1.5,
+                'beta': 0.1,
+                'market_depth_modifier': lambda depth: 1 / (1 + depth)  # Deeper markets absorb faster
+            },
+            InformationType.PUBLIC_SENTIMENT: {
+                'function': 'oscillating_decay',
+                'decay_rate': 0.02,
+                'frequency': 1/168  # Weekly cycle
+            },
+            InformationType.REFEREE_ASSIGNMENT: {
+                'function': 'exponential',
+                'base_half_life': 120,  # Stable until game time
+            },
+            InformationType.COACHING_CHANGE: {
+                'function': 'power_law',
+                'alpha': 0.8,
+                'beta': 0.01  # Very slow decay
+            }
+        }
+        
+        # Track active information events
+        self.active_events: List[InformationEvent] = []
+        self.decay_history = []
+        
+    def add_information_event(self, event: InformationEvent):
+        """Register new information entering the market"""
+        # Calculate initial information value
+        initial_value = self._calculate_initial_value(event)
+        
+        # Store with decay tracking
+        self.active_events.append({
+            'event': event,
+            'initial_value': initial_value,
+            'birth_time': event.timestamp,
+            'current_value': initial_value
+        })
+        
+    def _calculate_initial_value(self, event: InformationEvent) -> float:
+        """Determine starting information value"""
+        base_value = abs(event.magnitude)
+        
+        # Adjust for credibility
+        credibility_factor = 0.5 + 0.5 * event.source_credibility
+        
+        # Adjust for surprise (unexpected info is more valuable)
+        surprise_factor = 1 + event.market_surprise
+        
+        return base_value * credibility_factor * surprise_factor
+    
+    def get_current_information_value(self, current_time: datetime) -> Dict:
+        """Calculate current value of all active information"""
+        values_by_type = {}
+        
+        for item in self.active_events:
+            event = item['event']
+            age_hours = (current_time - item['birth_time']).total_seconds() / 3600
+            
+            # Apply appropriate decay function
+            decayed_value = self._apply_decay(
+                event.info_type,
+                item['initial_value'],
+                age_hours,
+                event
+            )
+            
+            # Update tracking
+            item['current_value'] = decayed_value
+            
+            # Aggregate by type
+            if event.info_type not in values_by_type:
+                values_by_type[event.info_type] = []
+            
+            values_by_type[event.info_type].append({
+                'value': decayed_value,
+                'direction': np.sign(event.magnitude),
+                'age': age_hours,
+                'event': event
+            })
+        
+        return self._aggregate_information_values(values_by_type)
+    
+    def _apply_decay(self, info_type: InformationType, initial_value: float, 
+                     age_hours: float, event: InformationEvent) -> float:
+        """Apply appropriate decay function"""
+        params = self.decay_params[info_type]
+        func_name = params['function']
+        
+        if func_name == 'exponential':
+            half_life = params['base_half_life']
+            if 'severity_modifier' in params and info_type == InformationType.INJURY_REPORT:
+                severity = event.metadata.get('severity', 0.5)
+                half_life *= params['severity_modifier'](severity)
+            return DecayFunction.exponential(age_hours, initial_value, half_life)
+            
+        elif func_name == 'power_law':
+            alpha = params['alpha']
+            beta = params['beta']
+            if 'market_depth_modifier' in params:
+                market_depth = event.metadata.get('market_depth', 1.0)
+                beta *= params['market_depth_modifier'](market_depth)
+            return DecayFunction.power_law(age_hours, initial_value, alpha, beta)
+            
+        elif func_name == 'sigmoid_decay':
+            midpoint = params['base_midpoint']
+            steepness = params['steepness']
+            return DecayFunction.sigmoid_decay(age_hours, initial_value, midpoint, steepness)
+            
+        elif func_name == 'oscillating_decay':
+            decay_rate = params['decay_rate']
+            frequency = params['frequency']
+            return DecayFunction.oscillating_decay(age_hours, initial_value, decay_rate, frequency)
+    
+    def _aggregate_information_values(self, values_by_type: Dict) -> Dict:
+        """Combine multiple information sources intelligently"""
+        aggregated = {}
+        
+        for info_type, values in values_by_type.items():
+            if not values:
+                continue
+                
+            # Separate by direction
+            positive_values = [v for v in values if v['direction'] > 0]
+            negative_values = [v for v in values if v['direction'] < 0]
+            
+            # Non-linear aggregation (diminishing returns)
+            pos_total = self._diminishing_aggregate([v['value'] for v in positive_values])
+            neg_total = self._diminishing_aggregate([v['value'] for v in negative_values])
+            
+            aggregated[info_type] = {
+                'net_value': pos_total - neg_total,
+                'total_magnitude': pos_total + neg_total,
+                'signal_count': len(values),
+                'average_age': np.mean([v['age'] for v in values]),
+                'strongest_signal': max(values, key=lambda x: x['value'])
+            }
+        
+        return aggregated
+    
+    def _diminishing_aggregate(self, values: List[float]) -> float:
+        """Aggregate with diminishing returns"""
+        if not values:
+            return 0.0
+        
+        # Sort descending
+        sorted_values = sorted(values, reverse=True)
+        
+        # Apply diminishing weights
+        total = 0
+        for i, val in enumerate(sorted_values):
+            weight = 1 / (1 + 0.3 * i)  # Each additional signal worth less
+            total += val * weight
+        
+        return total
+    
+    def get_kalman_observation_noise_adjustment(self, current_time: datetime) -> float:
+        """
+        Generate dynamic observation noise for Kalman filter based on information decay.
+        More valuable information = less observation noise.
+        """
+        current_values = self.get_current_information_value(current_time)
+        
+        # Calculate total information quality
+        total_quality = 0
+        weights = {
+            InformationType.INJURY_REPORT: 0.3,
+            InformationType.SHARP_ACTION: 0.25,
+            InformationType.WEATHER_UPDATE: 0.15,
+            InformationType.REFEREE_ASSIGNMENT: 0.15,
+            InformationType.PUBLIC_SENTIMENT: 0.1,
+            InformationType.COACHING_CHANGE: 0.05
+        }
+        
+        for info_type, weight in weights.items():
+            if info_type in current_values:
+                # Quality based on magnitude and recency
+                quality = current_values[info_type]['total_magnitude']
+                age_penalty = np.exp(-0.01 * current_values[info_type]['average_age'])
+                total_quality += weight * quality * age_penalty
+        
+        # Convert to noise multiplier (high quality = low noise)
+        noise_multiplier = 1 / (1 + 2 * total_quality)
+        
+        return np.clip(noise_multiplier, 0.1, 2.0)  # Bounded adjustment
+    
+    def identify_stale_information(self, current_time: datetime, 
+                                  staleness_threshold: float = 0.1) -> List[Dict]:
+        """Identify information that has decayed below usefulness"""
+        stale_events = []
+        
+        for item in self.active_events:
+            if item['current_value'] < staleness_threshold * item['initial_value']:
+                stale_events.append({
+                    'event': item['event'],
+                    'age_hours': (current_time - item['birth_time']).total_seconds() / 3600,
+                    'decay_ratio': item['current_value'] / item['initial_value']
+                })
+        
+        # Remove stale events from active tracking
+        self.active_events = [
+            item for item in self.active_events 
+            if item['current_value'] >= staleness_threshold * item['initial_value']
+        ]
+        
+        return stale_events
+    
+    def plot_decay_curves(self, time_horizon_hours: int = 168):
+        """Visualize decay patterns for different information types"""
+        fig, axes = plt.subplots(2, 3, figsize=(15, 10))
+        axes = axes.flatten()
+        
+        time_points = np.linspace(0, time_horizon_hours, 1000)
+        
+        for idx, (info_type, ax) in enumerate(zip(InformationType, axes[:len(InformationType)])):
+            # Create dummy event
+            dummy_event = InformationEvent(
+                timestamp=datetime.now(),
+                info_type=info_type,
+                magnitude=1.0,
+                source_credibility=1.0,
+                market_surprise=0.5,
+                metadata={}
+            )
+            
+            # Calculate decay
+            values = []
+            for t in time_points:
+                val = self._apply_decay(info_type, 1.0, t, dummy_event)
+                values.append(val)
+            
+            ax.plot(time_points, values, linewidth=2)
+            ax.fill_between(time_points, 0, values, alpha=0.3)
+            ax.set_title(f'{info_type.value.title()} Information Decay')
+            ax.set_xlabel('Hours Since Event')
+            ax.set_ylabel('Information Value')
+            ax.grid(True, alpha=0.3)
+            
+            # Add half-life marker if applicable
+            if info_type in [InformationType.INJURY_REPORT, InformationType.REFEREE_ASSIGNMENT]:
+                half_life = self.decay_params[info_type]['base_half_life']
+                ax.axvline(half_life, color='red', linestyle='--', alpha=0.5)
+                ax.text(half_life, 0.5, f'τ½ = {half_life}h', rotation=90, va='bottom')
+        
+        plt.tight_layout()
+        return fig
+    
+    def optimize_information_timing(self, game_time: datetime, 
+                                   information_events: List[InformationEvent]) -> Dict:
+        """
+        Determine optimal timing for acting on information before it fully decays.
+        Returns recommended action windows.
+        """
+        action_windows = []
+        
+        for event in information_events:
+            # Calculate value trajectory
+            max_hours = (game_time - event.timestamp).total_seconds() / 3600
+            time_points = np.linspace(0, max_hours, 100)
+            
+            values = []
+            for t in time_points:
+                val = self._apply_decay(event.info_type, 1.0, t, event)
+                values.append(val)
+            
+            # Find optimal action window (where value > 50% of peak and derivative steepest)
+            values = np.array(values)
+            derivative = np.gradient(values)
+            
+            # Identify sweet spot: still valuable but market hasn't fully absorbed
+            above_threshold = values > 0.5
+            steep_decline = derivative < np.percentile(derivative[derivative < 0], 20)
+            
+            optimal_mask = above_threshold & steep_decline
+            if optimal_mask.any():
+                optimal_indices = np.where(optimal_mask)[0]
+                optimal_start_hours = time_points[optimal_indices[0]]
+                optimal_end_hours = time_points[optimal_indices[-1]]
+                
+                action_windows.append({
+                    'event': event,
+                    'window_start': event.timestamp + timedelta(hours=optimal_start_hours),
+                    'window_end': event.timestamp + timedelta(hours=optimal_end_hours),
+                    'peak_value_retention': values[optimal_indices[0]],
+                    'urgency_score': 1 / (optimal_end_hours - optimal_start_hours + 1)
+                })
+        
+        return {
+            'action_windows': sorted(action_windows, key=lambda x: x['urgency_score'], reverse=True),
+            'total_opportunities': len(action_windows),
+            'average_window_duration': np.mean([
+                (w['window_end'] - w['window_start']).total_seconds() / 3600 
+                for w in action_windows
+            ]) if action_windows else 0
+        }
+
+
+
+
+# Integration with your existing framework
+class LUCYKalmanHalfLifeIntegration:
+    """Bridges the Information Half-Life Engine with LUCY and Kalman systems"""
+    
+    def __init__(self, lucy_engine, kalman_filter, half_life_engine):
+        self.lucy = lucy_engine
+        self.kf = kalman_filter
+        self.hl = half_life_engine
+        
+    def process_information_flow(self, current_time: datetime, new_events: List[InformationEvent]):
+        """Process new information and update all systems"""
+        
+        # Add events to half-life tracking
+        for event in new_events:
+            self.hl.add_information_event(event)
+        
+        # Get current information landscape
+        info_values = self.hl.get_current_information_value(current_time)
+        
+        # Adjust Kalman filter observation noise
+        noise_adjustment = self.hl.get_kalman_observation_noise_adjustment(current_time)
+        self.kf.R *= noise_adjustment
+        
+        # Update LUCY confidence based on information freshness
+        lucy_adjustment = self._calculate_lucy_adjustment(info_values)
+        
+        # Clean up stale information
+        stale = self.hl.identify_stale_information(current_time)
+        if stale:
+            print(f"Pruned {len(stale)} stale information events")
+        
+        return {
+            'active_information': info_values,
+            'kalman_noise_factor': noise_adjustment,
+            'lucy_confidence_modifier': lucy_adjustment,
+            'stale_events_removed': len(stale)
+        }
+    
+    def _calculate_lucy_adjustment(self, info_values: Dict) -> float:
+        """Convert information freshness to LUCY confidence modifier"""
+        if not info_values:
+            return 0.5
+        
+        # Weight different information types by their importance to LUCY
+        total_score = 0
+        total_weight = 0
+        
+        lucy_weights = {
+            InformationType.SHARP_ACTION: 0.4,
+            InformationType.INJURY_REPORT: 0.3,
+            InformationType.REFEREE_ASSIGNMENT: 0.2,
+            InformationType.WEATHER_UPDATE: 0.1
+        }
+        
+        for info_type, weight in lucy_weights.items():
+            if info_type in info_values:
+                magnitude = info_values[info_type]['total_magnitude']
+                total_score += magnitude * weight
+                total_weight += weight
+        
+        if total_weight > 0:
+            return 0.5 + 0.5 * np.tanh(total_score / total_weight)
+        return 0.5
+
+
+
+
+# Example usage
+if __name__ == "__main__":
+    # Initialize the engine
+    half_life_engine = InformationHalfLifeEngine()
+    
+    # Simulate information events
+    current_time = datetime.now()
+    
+    # Star QB injury announced
+    injury_event = InformationEvent(
+        timestamp=current_time - timedelta(hours=24),
+        info_type=InformationType.INJURY_REPORT,
+        magnitude=-0.8,  # Negative impact
+        source_credibility=1.0,  # Official report
+        market_surprise=0.7,  # Somewhat unexpected
+        metadata={'player': 'QB1', 'severity': 0.8, 'team': 'Chiefs'}
+    )
+    
+    # Sharp money movement detected
+    sharp_event = InformationEvent(
+        timestamp=current_time - timedelta(hours=6),
+        info_type=InformationType.SHARP_ACTION,
+        magnitude=0.6,  # Positive for underdog
+        source_credibility=0.9,
+        market_surprise=0.4,
+        metadata={'market_depth': 2.5, 'size': 'large'}
+    )
+    
+    # Add events
+    half_life_engine.add_information_event(injury_event)
+    half_life_engine.add_information_event(sharp_event)
+    
+    # Check current values
+    current_values = half_life_engine.get_current_information_value(current_time)
+    print("Current Information Landscape:")
+    for info_type, data in current_values.items():
+        print(f"\n{info_type.value}:")
+        print(f"  Net Value: {data['net_value']:.3f}")
+        print(f"  Signal Count: {data['signal_count']}")
+        print(f"  Average Age: {data['average_age']:.1f} hours")
+    
+    # Get Kalman adjustment
+    kalman_noise = half_life_engine.get_kalman_observation_noise_adjustment(current_time)
+    print(f"\nKalman Observation Noise Multiplier: {kalman_noise:.3f}")
+    
+    # Plot decay curves
+    fig = half_life_engine.plot_decay_curves()
+    plt.savefig('information_decay_patterns.png', dpi=300, bbox_inches='tight')
+    print("\nDecay curves saved to 'information_decay_patterns.png'")

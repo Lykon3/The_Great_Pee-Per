@@ -1,0 +1,777 @@
+﻿"""
+Strategy Evolution Engine
+Proactive adaptation through genetic algorithms and reinforcement learning
+"""
+
+
+import numpy as np
+import pandas as pd
+from typing import Dict, List, Tuple, Optional, Callable, Any
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from abc import ABC, abstractmethod
+import torch
+import torch.nn as nn
+from scipy.stats import entropy
+from sklearn.gaussian_process import GaussianProcessRegressor
+from sklearn.gaussian_process.kernels import RBF, WhiteKernel
+import hashlib
+import json
+
+
+
+
+@dataclass
+class StrategyGenome:
+    """Genetic representation of a betting strategy"""
+    id: str
+    generation: int
+    genes: Dict[str, Any]  # Mutable strategy parameters
+    fitness: float = 0.0
+    market_exposure: float = 0.0
+    fingerprint_uniqueness: float = 1.0
+    parents: List[str] = field(default_factory=list)
+    mutations: List[str] = field(default_factory=list)
+    birth_time: datetime = field(default_factory=datetime.now)
+    
+    def __hash__(self):
+        return hash(self.id)
+    
+    def to_phenotype(self) -> 'Strategy':
+        """Convert genetic representation to executable strategy"""
+        return Strategy.from_genome(self)
+
+
+
+
+@dataclass
+class Strategy:
+    """Executable betting strategy with behavior and parameters"""
+    name: str
+    genome: StrategyGenome
+    signal_generator: Callable
+    bet_sizer: Callable
+    timing_function: Callable
+    market_selector: Callable
+    confidence_threshold: float
+   
+    @classmethod
+    def from_genome(cls, genome: StrategyGenome):
+        """Factory method to create strategy from genome"""
+        # Map genes to strategy components
+        return cls(
+            name=f"Strategy_{genome.id}",
+            genome=genome,
+            signal_generator=cls._build_signal_generator(genome.genes),
+            bet_sizer=cls._build_bet_sizer(genome.genes),
+            timing_function=cls._build_timing_function(genome.genes),
+            market_selector=cls._build_market_selector(genome.genes),
+            confidence_threshold=genome.genes.get('confidence_threshold', 0.05)
+        )
+   
+    @staticmethod
+    def _build_signal_generator(genes: Dict) -> Callable:
+        """Create signal generation function from genes"""
+        def signal_gen(market_data, half_life_info, kalman_state):
+            # Gene-controlled signal generation
+            sharp_weight = genes.get('sharp_weight', 0.3)
+            injury_weight = genes.get('injury_weight', 0.4)
+            weather_weight = genes.get('weather_weight', 0.1)
+            momentum_weight = genes.get('momentum_weight', 0.2)
+            
+            signal = 0
+            signal += sharp_weight * market_data.get('sharp_divergence', 0)
+            signal += injury_weight * half_life_info.get('injury_value', 0)
+            signal += weather_weight * market_data.get('weather_impact', 0)
+            signal += momentum_weight * kalman_state.get('momentum', 0)
+            
+            # Apply non-linear transformations based on genes
+            if genes.get('use_sigmoid_transform', False):
+                signal = 2 / (1 + np.exp(-genes.get('sigmoid_k', 2) * signal)) - 1
+            
+            return signal
+        
+        return signal_gen
+
+
+
+
+class EvolutionaryOptimizer:
+    """Genetic algorithm for strategy evolution"""
+    
+    def __init__(self, 
+                 population_size: int = 100,
+                 mutation_rate: float = 0.15,
+                 crossover_rate: float = 0.7,
+                 elitism_rate: float = 0.1):
+        
+        self.population_size = population_size
+        self.mutation_rate = mutation_rate
+        self.crossover_rate = crossover_rate
+        self.elitism_rate = elitism_rate
+        
+        self.population: List[StrategyGenome] = []
+        self.generation = 0
+        self.fitness_history = []
+        self.diversity_metrics = []
+        
+        # Mutation operators
+        self.mutation_operators = {
+            'gaussian_noise': self._mutate_gaussian,
+            'random_reset': self._mutate_reset,
+            'adaptive_step': self._mutate_adaptive,
+            'structural': self._mutate_structure
+        }
+        
+    def initialize_population(self, base_strategies: List[Dict]) -> List[StrategyGenome]:
+        """Create initial population from base strategies"""
+        self.population = []
+        
+        for i in range(self.population_size):
+            # Start with a base strategy
+            base = base_strategies[i % len(base_strategies)]
+            
+            # Add random variations
+            genes = self._randomize_genes(base.copy())
+            
+            genome = StrategyGenome(
+                id=self._generate_id(),
+                generation=0,
+                genes=genes
+            )
+            
+            self.population.append(genome)
+        
+        return self.population
+    
+    def evolve_generation(self, fitness_evaluator: Callable) -> List[StrategyGenome]:
+        """Run one generation of evolution"""
+        self.generation += 1
+        
+        # 1. Evaluate fitness for all individuals
+        for genome in self.population:
+            if genome.fitness == 0:  # Only evaluate if not already done
+                genome.fitness = fitness_evaluator(genome)
+        
+        # 2. Calculate diversity metrics
+        diversity = self._calculate_population_diversity()
+        self.diversity_metrics.append(diversity)
+        
+        # 3. Selection
+        parents = self._select_parents()
+        
+        # 4. Elitism - keep best performers
+        elite_count = int(self.population_size * self.elitism_rate)
+        elite = sorted(self.population, key=lambda x: x.fitness, reverse=True)[:elite_count]
+        
+        # 5. Create new generation
+        new_population = elite.copy()
+        
+        while len(new_population) < self.population_size:
+            if np.random.random() < self.crossover_rate:
+                # Crossover
+                parent1, parent2 = np.random.choice(parents, 2, replace=False)
+                child = self._crossover(parent1, parent2)
+            else:
+                # Clone and mutate
+                parent = np.random.choice(parents)
+                child = self._clone_genome(parent)
+            
+            # Mutation
+            if np.random.random() < self.mutation_rate:
+                child = self._mutate(child)
+            
+            child.generation = self.generation
+            new_population.append(child)
+        
+        self.population = new_population
+        return self.population
+    
+    def _calculate_population_diversity(self) -> float:
+        """Measure genetic diversity in population"""
+        if len(self.population) < 2:
+            return 0.0
+        
+        # Calculate pairwise genetic distances
+        distances = []
+        for i in range(len(self.population)):
+            for j in range(i + 1, len(self.population)):
+                dist = self._genetic_distance(
+                    self.population[i].genes,
+                    self.population[j].genes
+                )
+                distances.append(dist)
+        
+        return np.mean(distances) if distances else 0.0
+    
+    def _genetic_distance(self, genes1: Dict, genes2: Dict) -> float:
+        """Calculate distance between two genomes"""
+        distance = 0.0
+        all_keys = set(genes1.keys()) | set(genes2.keys())
+        
+        for key in all_keys:
+            val1 = genes1.get(key, 0)
+            val2 = genes2.get(key, 0)
+            
+            if isinstance(val1, (int, float)) and isinstance(val2, (int, float)):
+                distance += abs(val1 - val2)
+            elif val1 != val2:
+                distance += 1.0
+        
+        return distance / len(all_keys)
+    
+    def _crossover(self, parent1: StrategyGenome, parent2: StrategyGenome) -> StrategyGenome:
+        """Create offspring through crossover"""
+        child_genes = {}
+        
+        # Uniform crossover with bias toward fitter parent
+        fitness_ratio = parent1.fitness / (parent1.fitness + parent2.fitness + 1e-8)
+        
+        for key in set(parent1.genes.keys()) | set(parent2.genes.keys()):
+            if np.random.random() < fitness_ratio:
+                child_genes[key] = parent1.genes.get(key)
+            else:
+                child_genes[key] = parent2.genes.get(key)
+        
+        return StrategyGenome(
+            id=self._generate_id(),
+            generation=self.generation,
+            genes=child_genes,
+            parents=[parent1.id, parent2.id]
+        )
+    
+    def _mutate(self, genome: StrategyGenome) -> StrategyGenome:
+        """Apply mutations to genome"""
+        # Choose mutation operator based on diversity
+        if self.diversity_metrics and self.diversity_metrics[-1] < 0.1:
+            # Low diversity - use more aggressive mutations
+            operator = np.random.choice(['random_reset', 'structural'])
+        else:
+            operator = np.random.choice(list(self.mutation_operators.keys()))
+        
+        mutated_genes = self.mutation_operators[operator](genome.genes.copy())
+        
+        genome.genes = mutated_genes
+        genome.mutations.append(f"{operator}_{self.generation}")
+        
+        return genome
+    
+    def _mutate_gaussian(self, genes: Dict) -> Dict:
+        """Add Gaussian noise to numeric parameters"""
+        for key, value in genes.items():
+            if isinstance(value, (int, float)):
+                noise = np.random.normal(0, 0.1 * abs(value))
+                genes[key] = np.clip(value + noise, 0, 1) if 0 <= value <= 1 else value + noise
+        return genes
+    
+    def _mutate_adaptive(self, genes: Dict) -> Dict:
+        """Adaptive mutation based on parameter sensitivity"""
+        # Estimate parameter sensitivity using surrogate model
+        sensitivities = self._estimate_sensitivities(genes)
+        
+        for key, value in genes.items():
+            if isinstance(value, (int, float)) and key in sensitivities:
+                # Larger mutations for less sensitive parameters
+                step_size = 0.2 / (1 + sensitivities[key])
+                genes[key] = value + np.random.normal(0, step_size)
+        
+        return genes
+
+
+
+
+class ReinforcementLearningAdapter:
+    """RL-based strategy adaptation using policy gradients"""
+    
+    def __init__(self, state_dim: int = 20, action_dim: int = 10):
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+        
+        # Policy network
+        self.policy_net = self._build_policy_network()
+        self.optimizer = torch.optim.Adam(self.policy_net.parameters(), lr=1e-4)
+        
+        # Experience buffer
+        self.states = []
+        self.actions = []
+        self.rewards = []
+        self.next_states = []
+        
+        # Exploration parameters
+        self.epsilon = 0.3
+        self.epsilon_decay = 0.995
+        self.min_epsilon = 0.05
+        
+    def _build_policy_network(self) -> nn.Module:
+        """Build neural network for policy"""
+        return nn.Sequential(
+            nn.Linear(self.state_dim, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(32, self.action_dim),
+            nn.Softmax(dim=-1)
+        )
+    
+    def get_market_state(self, market_data: Dict, 
+                        strategy_performance: Dict,
+                        adversarial_metrics: Dict) -> np.ndarray:
+        """Convert market conditions to RL state vector"""
+        state = []
+        
+        # Market features
+        state.extend([
+            market_data.get('volatility', 0),
+            market_data.get('volume_ratio', 0),
+            market_data.get('sharp_percentage', 0),
+            market_data.get('line_movement_velocity', 0),
+        ])
+        
+        # Strategy performance features
+        state.extend([
+            strategy_performance.get('recent_roi', 0),
+            strategy_performance.get('win_rate', 0),
+            strategy_performance.get('kelly_fraction', 0),
+            strategy_performance.get('max_drawdown', 0),
+        ])
+        
+        # Adversarial features
+        state.extend([
+            adversarial_metrics.get('market_adaptation_score', 0),
+            adversarial_metrics.get('trap_probability', 0),
+            adversarial_metrics.get('fingerprint_exposure', 0),
+        ])
+        
+        # Temporal features
+        state.extend([
+            np.sin(2 * np.pi * market_data.get('hour', 0) / 24),
+            np.cos(2 * np.pi * market_data.get('hour', 0) / 24),
+            market_data.get('days_until_game', 0) / 7,
+        ])
+        
+        return np.array(state[:self.state_dim])
+    
+    def select_action(self, state: np.ndarray, explore: bool = True) -> int:
+        """Select strategy adaptation action"""
+        if explore and np.random.random() < self.epsilon:
+            # Exploration
+            return np.random.randint(self.action_dim)
+        
+        # Exploitation
+        with torch.no_grad():
+            state_tensor = torch.FloatTensor(state).unsqueeze(0)
+            action_probs = self.policy_net(state_tensor)
+            action = torch.multinomial(action_probs, 1).item()
+        
+        return action
+    
+    def adapt_strategy(self, action: int, current_genome: StrategyGenome) -> StrategyGenome:
+        """Apply RL-selected adaptation to strategy"""
+        adaptations = {
+            0: lambda g: self._increase_noise(g, 0.1),
+            1: lambda g: self._decrease_noise(g, 0.1),
+            2: lambda g: self._shift_timing(g, 'earlier'),
+            3: lambda g: self._shift_timing(g, 'later'),
+            4: lambda g: self._adjust_confidence(g, 1.2),
+            5: lambda g: self._adjust_confidence(g, 0.8),
+            6: lambda g: self._diversify_markets(g),
+            7: lambda g: self._concentrate_markets(g),
+            8: lambda g: self._randomize_sizing(g),
+            9: lambda g: self._maintain_current(g)
+        }
+        
+        adapted_genome = adaptations[action](current_genome)
+        adapted_genome.mutations.append(f"RL_action_{action}")
+        
+        return adapted_genome
+    
+    def update_policy(self, batch_size: int = 32):
+        """Update policy using REINFORCE algorithm"""
+        if len(self.rewards) < batch_size:
+            return
+        
+        # Calculate discounted returns
+        returns = []
+        discounted_return = 0
+        gamma = 0.99
+        
+        for reward in reversed(self.rewards[-batch_size:]):
+            discounted_return = reward + gamma * discounted_return
+            returns.insert(0, discounted_return)
+        
+        returns = torch.FloatTensor(returns)
+        returns = (returns - returns.mean()) / (returns.std() + 1e-8)
+        
+        # Policy gradient update
+        policy_loss = []
+        
+        for i in range(batch_size):
+            state = torch.FloatTensor(self.states[-(batch_size-i)])
+            action = self.actions[-(batch_size-i)]
+            ret = returns[i]
+            
+            action_probs = self.policy_net(state)
+            log_prob = torch.log(action_probs[action])
+            policy_loss.append(-log_prob * ret)
+        
+        loss = torch.stack(policy_loss).mean()
+        
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        
+        # Decay exploration
+        self.epsilon = max(self.min_epsilon, self.epsilon * self.epsilon_decay)
+
+
+
+
+class MetaLearningOrchestrator:
+    """High-level orchestrator combining evolution and RL"""
+    
+    def __init__(self):
+        self.evolutionary_optimizer = EvolutionaryOptimizer()
+        self.rl_adapter = ReinforcementLearningAdapter()
+        self.performance_tracker = StrategyPerformanceTracker()
+        self.strategy_nursery = StrategyNursery()
+        
+        # Meta-learning parameters
+        self.adaptation_frequency = timedelta(days=7)
+        self.last_adaptation = datetime.now()
+        
+    def run_adaptation_cycle(self, 
+                           market_data: pd.DataFrame,
+                           current_strategies: List[Strategy],
+                           adversarial_metrics: Dict) -> List[Strategy]:
+        """Execute full adaptation cycle"""
+        
+        # 1. Assess current environment
+        env_state = self._assess_environment(market_data, adversarial_metrics)
+        
+        # 2. Decide adaptation approach based on threat level
+        if adversarial_metrics['market_adaptation_score'] > 0.8:
+            # High threat - aggressive evolution
+            new_strategies = self._emergency_evolution(current_strategies)
+        elif adversarial_metrics['market_adaptation_score'] > 0.5:
+            # Medium threat - balanced approach
+            new_strategies = self._balanced_adaptation(current_strategies, env_state)
+        else:
+            # Low threat - incremental improvements
+            new_strategies = self._incremental_optimization(current_strategies)
+        
+        # 3. Test new strategies in nursery
+        tested_strategies = self.strategy_nursery.test_strategies(
+            new_strategies, market_data
+        )
+        
+        # 4. Portfolio optimization
+        final_portfolio = self._optimize_strategy_portfolio(
+            tested_strategies, 
+            diversity_target=0.3
+        )
+        
+        return final_portfolio
+    
+    def _emergency_evolution(self, strategies: List[Strategy]) -> List[Strategy]:
+        """Rapid evolution when under high threat"""
+        # Convert to genomes
+        genomes = [s.genome for s in strategies]
+        
+        # Run accelerated evolution
+        evolved = []
+        for _ in range(5):  # Multiple generations quickly
+            genomes = self.evolutionary_optimizer.evolve_generation(
+                lambda g: self._emergency_fitness(g)
+            )
+        
+        # Convert back to strategies
+        return [g.to_phenotype() for g in genomes[:10]]  # Top 10
+    
+    def _balanced_adaptation(self, strategies: List[Strategy], 
+                           env_state: np.ndarray) -> List[Strategy]:
+        """Balance between evolution and RL adaptation"""
+        adapted = []
+        
+        for strategy in strategies:
+            # RL decides how to adapt
+            action = self.rl_adapter.select_action(env_state)
+            adapted_genome = self.rl_adapter.adapt_strategy(
+                action, strategy.genome
+            )
+            
+            # Small chance of additional evolution
+            if np.random.random() < 0.3:
+                adapted_genome = self.evolutionary_optimizer._mutate(adapted_genome)
+            
+            adapted.append(adapted_genome.to_phenotype())
+        
+        return adapted
+
+
+
+
+class StrategyNursery:
+    """Safe testing environment for new strategies"""
+    
+    def __init__(self, test_capital_fraction: float = 0.05):
+        self.test_capital_fraction = test_capital_fraction
+        self.performance_history = {}
+        self.graduation_threshold = 0.03  # 3% ROI in testing
+        
+    def test_strategies(self, strategies: List[Strategy], 
+                       market_data: pd.DataFrame,
+                       test_duration: int = 14) -> List[Strategy]:
+        """Test strategies with small capital before full deployment"""
+        
+        graduated = []
+        
+        for strategy in strategies:
+            # Paper trade or small real capital
+            test_results = self._run_test(strategy, market_data, test_duration)
+            
+            # Track performance
+            self.performance_history[strategy.genome.id] = test_results
+            
+            # Graduate successful strategies
+            if test_results['roi'] > self.graduation_threshold:
+                if test_results['sharpe'] > 1.0:
+                    if test_results['max_drawdown'] < 0.15:
+                        graduated.append(strategy)
+                        print(f"Strategy {strategy.name} graduated from nursery!")
+        
+        return graduated
+    
+    def _run_test(self, strategy: Strategy, 
+                  market_data: pd.DataFrame,
+                  days: int) -> Dict:
+        """Simulate strategy performance"""
+        # This would run actual backtests or paper trades
+        # Simplified for demonstration
+        
+        roi = np.random.normal(0.05, 0.03)
+        sharpe = np.random.normal(1.5, 0.5)
+        max_dd = abs(np.random.normal(0.1, 0.05))
+        
+        return {
+            'roi': roi,
+            'sharpe': sharpe,
+            'max_drawdown': max_dd,
+            'trades': np.random.randint(10, 50)
+        }
+
+
+
+
+class StrategyLifecycleManager:
+    """Manages the complete lifecycle of strategies"""
+    
+    def __init__(self):
+        self.active_strategies = {}
+        self.retired_strategies = {}
+        self.strategy_ages = {}
+        self.performance_decay_tracker = {}
+        
+    def monitor_strategy_health(self, strategy_id: str, 
+                              recent_performance: Dict) -> str:
+        """Monitor strategy health and recommend actions"""
+        
+        # Track performance decay
+        if strategy_id not in self.performance_decay_tracker:
+            self.performance_decay_tracker[strategy_id] = []
+        
+        self.performance_decay_tracker[strategy_id].append(
+            recent_performance['roi']
+        )
+        
+        # Analyze trend
+        if len(self.performance_decay_tracker[strategy_id]) > 10:
+            recent = self.performance_decay_tracker[strategy_id][-10:]
+            trend = np.polyfit(range(len(recent)), recent, 1)[0]
+            
+            if trend < -0.001:  # Declining performance
+                if recent[-1] < 0:  # Now unprofitable
+                    return "RETIRE_IMMEDIATELY"
+                else:
+                    return "MUTATE_URGENTLY"
+            elif trend < 0:
+                return "MONITOR_CLOSELY"
+            else:
+                return "HEALTHY"
+        
+        return "INSUFFICIENT_DATA"
+    
+    def retire_strategy(self, strategy: Strategy, reason: str):
+        """Gracefully retire a strategy"""
+        self.retired_strategies[strategy.genome.id] = {
+            'strategy': strategy,
+            'retirement_date': datetime.now(),
+            'reason': reason,
+            'final_performance': self.performance_decay_tracker.get(
+                strategy.genome.id, []
+            )
+        }
+        
+        # Extract lessons learned
+        lessons = self._extract_lessons(strategy)
+        
+        # Inform evolution of what to avoid
+        return lessons
+    
+    def _extract_lessons(self, strategy: Strategy) -> Dict:
+        """Learn from retired strategies"""
+        return {
+            'failed_genes': strategy.genome.genes,
+            'market_conditions_at_failure': self._get_market_snapshot(),
+            'lifetime_roi': np.sum(
+                self.performance_decay_tracker.get(strategy.genome.id, [0])
+            ),
+            'failure_pattern': self._identify_failure_pattern(strategy)
+        }
+
+
+
+
+# Integration with existing framework
+class FullyIntegratedEvolutionSystem:
+    """Complete integration of all components"""
+    
+    def __init__(self):
+        # Core modules
+        self.causal_engine = CausalIntelligenceEngine()
+        self.half_life_engine = InformationHalfLifeEngine()
+        self.adversarial_detector = AdversarialMarketDetector()
+        
+        # Evolution modules
+        self.evolution_orchestrator = MetaLearningOrchestrator()
+        self.lifecycle_manager = StrategyLifecycleManager()
+        
+        # Active strategy portfolio
+        self.strategy_portfolio = []
+        
+    def daily_operations(self, market_data: pd.DataFrame):
+        """Execute daily betting operations with full adaptation"""
+        
+        # 1. Update information landscape
+        current_time = datetime.now()
+        info_events = self._extract_information_events(market_data)
+        
+        for event in info_events:
+            self.half_life_engine.add_information_event(event)
+        
+        # 2. Get current information values
+        info_landscape = self.half_life_engine.get_current_information_value(
+            current_time
+        )
+        
+        # 3. Update Kalman filter with time-adjusted noise
+        noise_adj = self.half_life_engine.get_kalman_observation_noise_adjustment(
+            current_time
+        )
+        self.causal_engine.kalman_filter.R *= noise_adj
+        
+        # 4. Check for adversarial activity
+        threat_assessment = self.adversarial_detector.analyze_market_adaptation(
+            self._get_recent_bets(),
+            market_data
+        )
+        
+        # 5. Adapt strategies if needed
+        if threat_assessment['market_adaptation_score'] > 0.5 or \
+           self._time_for_adaptation():
+            
+            self.strategy_portfolio = self.evolution_orchestrator.run_adaptation_cycle(
+                market_data,
+                self.strategy_portfolio,
+                threat_assessment
+            )
+        
+        # 6. Execute strategies
+        decisions = []
+        for strategy in self.strategy_portfolio:
+            # Check health
+            health = self.lifecycle_manager.monitor_strategy_health(
+                strategy.genome.id,
+                self._get_strategy_performance(strategy)
+            )
+            
+            if health == "RETIRE_IMMEDIATELY":
+                self.lifecycle_manager.retire_strategy(strategy, "Poor performance")
+                continue
+            
+            # Generate signals
+            signal = strategy.signal_generator(
+                market_data,
+                info_landscape,
+                self.causal_engine.kalman_filter.x
+            )
+            
+            if abs(signal) > strategy.confidence_threshold:
+                # Size bet
+                bet_size = strategy.bet_sizer(signal, self._get_bankroll())
+                
+                # Time bet
+                bet_time = strategy.timing_function(current_time, info_landscape)
+                
+                decisions.append({
+                    'strategy': strategy.name,
+                    'signal': signal,
+                    'size': bet_size,
+                    'execute_at': bet_time,
+                    'confidence': abs(signal)
+                })
+        
+        return decisions
+
+
+
+
+# Example usage
+if __name__ == "__main__":
+    # Initialize the complete system
+    evolution_system = FullyIntegratedEvolutionSystem()
+    
+    # Create some base strategies to evolve from
+    base_strategies = [
+        {
+            'sharp_weight': 0.4,
+            'injury_weight': 0.3,
+            'weather_weight': 0.1,
+            'momentum_weight': 0.2,
+            'confidence_threshold': 0.05,
+            'use_sigmoid_transform': True,
+            'sigmoid_k': 2.0
+        },
+        {
+            'sharp_weight': 0.2,
+            'injury_weight': 0.5,
+            'weather_weight': 0.15,
+            'momentum_weight': 0.15,
+            'confidence_threshold': 0.07,
+            'use_sigmoid_transform': False
+        }
+    ]
+    
+    # Initialize population
+    evolution_system.evolution_orchestrator.evolutionary_optimizer.initialize_population(
+        base_strategies
+    )
+    
+    # Simulate daily operations
+    print("=== STRATEGY EVOLUTION ENGINE ===")
+    print("Starting adaptive betting operations...\n")
+    
+    # Mock market data
+    market_data = pd.DataFrame({
+        'timestamp': pd.date_range(start='2024-01-01', periods=100, freq='H'),
+        'volatility': np.random.uniform(0.01, 0.05, 100),
+        'sharp_percentage': np.random.uniform(20, 80, 100),
+        'line_movement_velocity': np.random.normal(0, 0.5, 100)
+    })
+    
+    decisions = evolution_system.daily_operations(market_data)
+    
+    print(f"Generated {len(decisions)} betting decisions")
+    print(f"Active strategies: {len(evolution_system.strategy_portfolio)}")
+    print(f"Population diversity: {evolution_system.evolution_orchestrator.evolutionary_optimizer.diversity_metrics[-1]:.3f}")

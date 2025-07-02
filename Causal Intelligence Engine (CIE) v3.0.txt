@@ -1,0 +1,677 @@
+﻿"""
+Causal Intelligence Engine (CIE) v3.0
+The Complete Living System Architecture
+"""
+
+
+from typing import Dict, List, Optional, Any, Tuple
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+import asyncio
+import numpy as np
+import pandas as pd
+from abc import ABC, abstractmethod
+import logging
+
+
+# Configure master logger
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("CIE.v3")
+
+
+
+
+@dataclass
+class SystemHealth:
+    """Real-time health metrics of the living system"""
+    timestamp: datetime
+    heartbeat_rate: float  # Information processing rate
+    immune_activity: float  # Adversarial detection level
+    evolution_pressure: float  # Need for adaptation
+    brain_coherence: float  # Causal model confidence
+    sensory_clarity: float  # Data quality metric
+    action_confidence: float  # Execution certainty
+   
+    @property
+    def overall_health(self) -> float:
+        """Composite health score"""
+        return np.mean([
+            self.heartbeat_rate,
+            1 - self.immune_activity,  # Lower is better
+            1 - self.evolution_pressure,  # Lower is better
+            self.brain_coherence,
+            self.sensory_clarity,
+            self.action_confidence
+        ])
+
+
+
+
+class CausalIntelligenceEngine:
+    """
+    The Complete Living System
+    
+    An autonomous, adaptive intelligence that perceives, analyzes, defends,
+    and evolves in the adversarial sports betting market ecosystem.
+    """
+    
+    def __init__(self, config: Dict[str, Any] = None):
+        logger.info("Initializing Causal Intelligence Engine v3.0...")
+        
+        # System configuration
+        self.config = config or self._default_config()
+        
+        # 1. THE EYES - Sensory System
+        logger.info("Initializing sensory systems...")
+        self.market_reader = MarketDataIngestion(self.config['data_sources'])
+        self.news_scanner = NewsAndEventScanner()
+        self.odds_tracker = RealTimeOddsTracker()
+        
+        # 2. THE BRAIN - Analytical Core
+        logger.info("Initializing analytical core...")
+        self.lucy_engine = LUCYCausalEngine()
+        self.kalman_filter = SportsBettingEKF(dim_x=6, dim_z=4)
+        self.causal_reasoner = CausalReasoningModule()
+        
+        # 3. THE HEARTBEAT - Temporal Awareness
+        logger.info("Initializing temporal systems...")
+        self.half_life_engine = InformationHalfLifeEngine()
+        self.timing_optimizer = OptimalTimingCalculator()
+        
+        # 4. THE IMMUNE SYSTEM - Defense Mechanisms
+        logger.info("Initializing defense systems...")
+        self.adversarial_detector = AdversarialMarketDetector(paranoia_level=0.7)
+        self.trap_detector = TrapLineDetector()
+        self.decoy_generator = DecoySignalGenerator()
+        
+        # 5. THE EVOLUTION ENGINE - Adaptation System
+        logger.info("Initializing evolution engine...")
+        self.evolution_orchestrator = MetaLearningOrchestrator()
+        self.strategy_nursery = StrategyNursery()
+        self.lifecycle_manager = StrategyLifecycleManager()
+        
+        # 6. THE HANDS - Action System
+        logger.info("Initializing action systems...")
+        self.portfolio_optimizer = AdaptivePortfolioOptimizer()
+        self.risk_manager = IntegratedRiskManager()
+        self.bet_executor = AutomatedBetExecutor()
+        
+        # System Integration Layer
+        self.system_health_monitor = SystemHealthMonitor()
+        self.feedback_loop = SystemFeedbackLoop()
+        
+        # Living memory
+        self.memory = {
+            'short_term': ShortTermMemory(capacity=1000),
+            'long_term': LongTermMemory(),
+            'episodic': EpisodicMemory()  # Specific betting scenarios
+        }
+        
+        # Active strategies portfolio
+        self.active_strategies = []
+        self.strategy_performance = {}
+        
+        logger.info("CIE v3.0 initialization complete. System is alive.")
+    
+    async def live(self):
+        """
+        The main consciousness loop of the system.
+        This is where the organism lives and breathes.
+        """
+        logger.info("CIE v3.0 entering live mode...")
+        
+        while True:
+            try:
+                # Heartbeat
+                cycle_start = datetime.now()
+                
+                # 1. PERCEIVE - Gather sensory input
+                sensory_data = await self._perceive()
+                
+                # 2. PROCESS - Update temporal awareness
+                temporal_state = await self._process_temporal(sensory_data)
+                
+                # 3. ANALYZE - Causal reasoning and state estimation
+                analytical_state = await self._analyze(sensory_data, temporal_state)
+                
+                # 4. DEFEND - Check for threats
+                threat_assessment = await self._assess_threats(analytical_state)
+                
+                # 5. ADAPT - Evolve if necessary
+                if self._should_adapt(threat_assessment):
+                    await self._evolve_strategies(threat_assessment)
+                
+                # 6. DECIDE - Generate actions
+                decisions = await self._decide(
+                    analytical_state, 
+                    temporal_state, 
+                    threat_assessment
+                )
+                
+                # 7. ACT - Execute decisions
+                actions = await self._act(decisions)
+                
+                # 8. LEARN - Update from results
+                await self._learn_from_cycle(actions)
+                
+                # 9. MONITOR - Check system health
+                health = await self._check_health()
+                
+                # Sleep until next cycle
+                cycle_duration = (datetime.now() - cycle_start).total_seconds()
+                sleep_time = max(0, self.config['cycle_interval'] - cycle_duration)
+                
+                logger.info(f"Cycle complete in {cycle_duration:.2f}s. "
+                          f"Health: {health.overall_health:.2%}. "
+                          f"Sleeping {sleep_time:.2f}s...")
+                
+                await asyncio.sleep(sleep_time)
+                
+            except Exception as e:
+                logger.error(f"Error in consciousness loop: {str(e)}")
+                await self._handle_system_error(e)
+    
+    async def _perceive(self) -> Dict[str, Any]:
+        """EYES: Gather all sensory input"""
+        logger.debug("Gathering sensory input...")
+        
+        # Parallel data gathering
+        tasks = [
+            self.market_reader.get_current_markets(),
+            self.odds_tracker.get_latest_movements(),
+            self.news_scanner.scan_for_events()
+        ]
+        
+        market_data, odds_movements, news_events = await asyncio.gather(*tasks)
+        
+        # Triage and categorize information
+        categorized_events = []
+        for event in news_events:
+            info_event = InformationEvent(
+                timestamp=event['timestamp'],
+                info_type=self._categorize_event(event),
+                magnitude=self._assess_magnitude(event),
+                source_credibility=self._assess_credibility(event['source']),
+                market_surprise=self._calculate_surprise(event),
+                metadata=event
+            )
+            categorized_events.append(info_event)
+        
+        return {
+            'market_data': market_data,
+            'odds_movements': odds_movements,
+            'information_events': categorized_events,
+            'timestamp': datetime.now()
+        }
+    
+    async def _process_temporal(self, sensory_data: Dict) -> Dict:
+        """HEARTBEAT: Process temporal aspects of information"""
+        current_time = sensory_data['timestamp']
+        
+        # Add new events to half-life tracking
+        for event in sensory_data['information_events']:
+            self.half_life_engine.add_information_event(event)
+        
+        # Get current information landscape
+        info_landscape = self.half_life_engine.get_current_information_value(current_time)
+        
+        # Calculate optimal action windows
+        action_windows = self.half_life_engine.optimize_information_timing(
+            current_time + timedelta(days=7),  # Look ahead 1 week
+            sensory_data['information_events']
+        )
+        
+        # Clean up stale information
+        stale_events = self.half_life_engine.identify_stale_information(current_time)
+        
+        return {
+            'info_landscape': info_landscape,
+            'action_windows': action_windows,
+            'stale_count': len(stale_events),
+            'kalman_noise_adjustment': self.half_life_engine.get_kalman_observation_noise_adjustment(current_time)
+        }
+    
+    async def _analyze(self, sensory_data: Dict, temporal_state: Dict) -> Dict:
+        """BRAIN: Perform causal analysis and state estimation"""
+        
+        # Adjust Kalman filter based on information freshness
+        self.kalman_filter.R *= temporal_state['kalman_noise_adjustment']
+        
+        # Update Kalman filter with new observations
+        observations = self._extract_observations(sensory_data['market_data'])
+        self.kalman_filter.predict()
+        self.kalman_filter.update(observations)
+        
+        # Extract hidden states
+        hidden_states = {
+            'team_strength': self.kalman_filter.x[0],
+            'home_advantage': self.kalman_filter.x[1],
+            'referee_bias': self.kalman_filter.x[2],
+            'momentum': self.kalman_filter.x[3],
+            'injury_impact': self.kalman_filter.x[4],
+            'market_sentiment': self.kalman_filter.x[5]
+        }
+        
+        # Run LUCY causal analysis
+        causal_edges = self.lucy_engine.identify_causal_opportunities(
+            sensory_data['market_data'],
+            hidden_states
+        )
+        
+        # Calculate confidence based on temporal and causal factors
+        integrated_confidence = self._calculate_integrated_confidence(
+            causal_edges,
+            temporal_state['info_landscape'],
+            self.kalman_filter.P  # Uncertainty matrix
+        )
+        
+        return {
+            'hidden_states': hidden_states,
+            'causal_edges': causal_edges,
+            'integrated_confidence': integrated_confidence,
+            'state_uncertainty': np.trace(self.kalman_filter.P)
+        }
+    
+    async def _assess_threats(self, analytical_state: Dict) -> Dict:
+        """IMMUNE SYSTEM: Detect and assess threats"""
+        
+        # Get recent betting history
+        recent_bets = self.memory['short_term'].get_recent_bets()
+        
+        # Run adversarial detection
+        market_adaptation = self.adversarial_detector.analyze_market_adaptation(
+            recent_bets,
+            self.market_reader.get_historical_movements()
+        )
+        
+        # Scan for trap lines
+        trap_analysis = self.trap_detector.scan_for_traps(
+            self.market_reader.get_current_lines(),
+            recent_bets
+        )
+        
+        # Calculate strategy exposure
+        strategy_exposure = {}
+        for strategy in self.active_strategies:
+            exposure = self._calculate_strategy_exposure(strategy)
+            strategy_exposure[strategy.genome.id] = exposure
+        
+        # Assess overall threat level
+        threat_level = self._calculate_threat_level(
+            market_adaptation,
+            trap_analysis,
+            strategy_exposure
+        )
+        
+        return {
+            'market_adaptation': market_adaptation,
+            'trap_analysis': trap_analysis,
+            'strategy_exposure': strategy_exposure,
+            'threat_level': threat_level,
+            'recommended_countermeasures': self._generate_countermeasures(threat_level)
+        }
+    
+    async def _evolve_strategies(self, threat_assessment: Dict):
+        """EVOLUTION ENGINE: Adapt strategies based on threats"""
+        
+        if threat_assessment['threat_level'] > 0.7:
+            logger.warning("High threat detected. Initiating emergency evolution...")
+            
+            # Emergency evolution
+            new_strategies = self.evolution_orchestrator._emergency_evolution(
+                self.active_strategies
+            )
+            
+        elif threat_assessment['threat_level'] > 0.4:
+            logger.info("Medium threat detected. Running balanced adaptation...")
+            
+            # Balanced adaptation
+            env_state = self._get_environment_state()
+            new_strategies = self.evolution_orchestrator._balanced_adaptation(
+                self.active_strategies,
+                env_state
+            )
+            
+        else:
+            # Incremental optimization
+            new_strategies = self.evolution_orchestrator._incremental_optimization(
+                self.active_strategies
+            )
+        
+        # Test in nursery
+        tested_strategies = await self.strategy_nursery.test_strategies_async(
+            new_strategies,
+            self.market_reader.get_test_data()
+        )
+        
+        # Update active portfolio
+        self.active_strategies = tested_strategies
+        
+        logger.info(f"Evolution complete. Active strategies: {len(self.active_strategies)}")
+    
+    async def _decide(self, analytical_state: Dict, 
+                     temporal_state: Dict, 
+                     threat_assessment: Dict) -> List[Dict]:
+        """BRAIN + HANDS: Generate betting decisions"""
+        
+        decisions = []
+        
+        for edge in analytical_state['causal_edges']:
+            # Check if we're in optimal timing window
+            if not self._in_optimal_window(edge, temporal_state['action_windows']):
+                continue
+            
+            # Apply threat filters
+            if threat_assessment['trap_analysis']['trap_count'] > 0:
+                trap_risk = self._get_specific_trap_risk(edge, threat_assessment)
+                if trap_risk > 0.7:
+                    logger.warning(f"Skipping edge due to trap risk: {trap_risk:.2%}")
+                    continue
+            
+            # Find best strategy for this edge
+            strategy = self._select_strategy_for_edge(edge, self.active_strategies)
+            
+            if strategy:
+                # Generate signal
+                signal = strategy.signal_generator(
+                    edge,
+                    temporal_state['info_landscape'],
+                    analytical_state['hidden_states']
+                )
+                
+                if abs(signal) > strategy.confidence_threshold:
+                    # Apply all confidence adjustments
+                    final_confidence = self._calculate_final_confidence(
+                        signal,
+                        analytical_state['integrated_confidence'],
+                        threat_assessment['market_adaptation']['adaptation_score']
+                    )
+                    
+                    # Size bet
+                    bet_size = self.portfolio_optimizer.calculate_position_size(
+                        edge,
+                        final_confidence,
+                        self.risk_manager.get_current_exposure()
+                    )
+                    
+                    decisions.append({
+                        'edge': edge,
+                        'strategy': strategy.name,
+                        'signal': signal,
+                        'confidence': final_confidence,
+                        'bet_size': bet_size,
+                        'timing': self.timing_optimizer.get_optimal_execution_time(edge)
+                    })
+        
+        return decisions
+    
+    async def _act(self, decisions: List[Dict]) -> List[Dict]:
+        """HANDS: Execute betting decisions"""
+        
+        executed_actions = []
+        
+        for decision in decisions:
+            try:
+                # Final risk check
+                if not self.risk_manager.approve_bet(decision):
+                    logger.warning(f"Risk manager rejected bet: {decision['edge']['game_id']}")
+                    continue
+                
+                # Apply countermeasures if needed
+                if self.adversarial_detector.should_apply_countermeasures():
+                    decision = self._apply_bet_countermeasures(decision)
+                
+                # Execute bet
+                result = await self.bet_executor.place_bet(decision)
+                
+                # Record action
+                executed_actions.append({
+                    'decision': decision,
+                    'result': result,
+                    'timestamp': datetime.now()
+                })
+                
+                # Update memory
+                self.memory['short_term'].record_bet(decision, result)
+                
+            except Exception as e:
+                logger.error(f"Failed to execute bet: {str(e)}")
+                self._handle_execution_error(decision, e)
+        
+        return executed_actions
+    
+    async def _learn_from_cycle(self, actions: List[Dict]):
+        """Learning and memory consolidation"""
+        
+        # Update strategy performance
+        for action in actions:
+            strategy_id = action['decision']['strategy']
+            if strategy_id in self.strategy_performance:
+                self.strategy_performance[strategy_id].append(action['result'])
+            else:
+                self.strategy_performance[strategy_id] = [action['result']]
+        
+        # Consolidate short-term to long-term memory
+        if len(self.memory['short_term'].buffer) > 900:
+            experiences = self.memory['short_term'].get_experiences_for_consolidation()
+            self.memory['long_term'].consolidate(experiences)
+        
+        # Update RL adapter
+        if hasattr(self.evolution_orchestrator, 'rl_adapter'):
+            for action in actions:
+                state = self._get_environment_state()
+                reward = action['result'].get('profit', 0)
+                self.evolution_orchestrator.rl_adapter.store_experience(
+                    state, action, reward
+                )
+            
+            # Periodic RL update
+            if len(actions) > 0 and np.random.random() < 0.1:
+                self.evolution_orchestrator.rl_adapter.update_policy()
+    
+    async def _check_health(self) -> SystemHealth:
+        """Monitor overall system health"""
+        
+        health = SystemHealth(
+            timestamp=datetime.now(),
+            heartbeat_rate=self._calculate_heartbeat_rate(),
+            immune_activity=self.adversarial_detector.get_activity_level(),
+            evolution_pressure=self._calculate_evolution_pressure(),
+            brain_coherence=self._calculate_brain_coherence(),
+            sensory_clarity=self._calculate_sensory_clarity(),
+            action_confidence=self._calculate_action_confidence()
+        )
+        
+        # Log health status
+        if health.overall_health < 0.5:
+            logger.warning(f"System health below threshold: {health.overall_health:.2%}")
+        
+        # Take corrective action if needed
+        if health.overall_health < 0.3:
+            await self._initiate_recovery_protocol()
+        
+        return health
+    
+    def _default_config(self) -> Dict[str, Any]:
+        """Default system configuration"""
+        return {
+            'cycle_interval': 300,  # 5 minutes
+            'data_sources': {
+                'odds_api': {'key': 'YOUR_KEY', 'update_freq': 60},
+                'news_feeds': ['espn', 'action_network', 'vegas_insider'],
+                'weather_api': {'key': 'YOUR_KEY', 'update_freq': 3600}
+            },
+            'risk_limits': {
+                'max_portfolio_risk': 0.20,
+                'max_single_bet': 0.05,
+                'max_correlated_exposure': 0.15
+            },
+            'evolution_params': {
+                'adaptation_threshold': 0.5,
+                'mutation_rate': 0.15,
+                'population_size': 100
+            }
+        }
+    
+    # Placeholder for additional helper methods
+    def _categorize_event(self, event: Dict) -> InformationType:
+        """Categorize an information event"""
+        # Implementation would analyze event content
+        pass
+    
+    def _calculate_integrated_confidence(self, causal_edges: List,
+                                       info_landscape: Dict,
+                                       uncertainty_matrix: np.ndarray) -> float:
+        """Calculate integrated confidence from all sources"""
+        # Combine causal confidence, temporal value, and Kalman uncertainty
+        pass
+    
+    def _should_adapt(self, threat_assessment: Dict) -> bool:
+        """Determine if adaptation is needed"""
+        return (threat_assessment['threat_level'] > 0.4 or
+                self._time_since_last_evolution() > timedelta(days=7))
+
+
+
+
+# Supporting Classes
+
+
+class SystemHealthMonitor:
+    """Monitors the health of the living system"""
+    
+    def __init__(self):
+        self.health_history = []
+        self.alert_thresholds = {
+            'heartbeat_rate': (0.3, 0.9),
+            'immune_activity': (0.0, 0.8),
+            'brain_coherence': (0.5, 1.0)
+        }
+    
+    def check_vital_signs(self, health: SystemHealth) -> List[str]:
+        """Check if any vital signs are outside normal range"""
+        alerts = []
+        
+        if not (self.alert_thresholds['heartbeat_rate'][0] <= 
+                health.heartbeat_rate <= 
+                self.alert_thresholds['heartbeat_rate'][1]):
+            alerts.append(f"Heartbeat rate abnormal: {health.heartbeat_rate:.2f}")
+        
+        if health.immune_activity > self.alert_thresholds['immune_activity'][1]:
+            alerts.append(f"High immune activity: {health.immune_activity:.2f}")
+        
+        if health.brain_coherence < self.alert_thresholds['brain_coherence'][0]:
+            alerts.append(f"Low brain coherence: {health.brain_coherence:.2f}")
+        
+        return alerts
+
+
+
+
+class SystemFeedbackLoop:
+    """Manages feedback between all system components"""
+    
+    def __init__(self):
+        self.feedback_channels = {
+            'performance_to_evolution': asyncio.Queue(),
+            'threats_to_strategy': asyncio.Queue(),
+            'temporal_to_execution': asyncio.Queue()
+        }
+    
+    async def propagate_feedback(self, source: str, target: str, feedback: Dict):
+        """Send feedback from one component to another"""
+        channel_name = f"{source}_to_{target}"
+        if channel_name in self.feedback_channels:
+            await self.feedback_channels[channel_name].put(feedback)
+
+
+
+
+# Memory Systems
+
+
+class ShortTermMemory:
+    """Fast-access recent memory"""
+    
+    def __init__(self, capacity: int = 1000):
+        self.capacity = capacity
+        self.buffer = []
+    
+    def record_bet(self, decision: Dict, result: Dict):
+        """Record a betting decision and its result"""
+        self.buffer.append({
+            'timestamp': datetime.now(),
+            'decision': decision,
+            'result': result
+        })
+        
+        # Maintain capacity
+        if len(self.buffer) > self.capacity:
+            self.buffer.pop(0)
+    
+    def get_recent_bets(self, hours: int = 24) -> pd.DataFrame:
+        """Get recent betting history"""
+        cutoff = datetime.now() - timedelta(hours=hours)
+        recent = [b for b in self.buffer if b['timestamp'] > cutoff]
+        return pd.DataFrame(recent)
+
+
+
+
+class LongTermMemory:
+    """Persistent memory for learned patterns"""
+    
+    def __init__(self):
+        self.patterns = {}
+        self.strategy_lifetimes = {}
+        self.market_regimes = {}
+    
+    def consolidate(self, experiences: List[Dict]):
+        """Consolidate short-term experiences into long-term patterns"""
+        # Extract and store patterns
+        pass
+
+
+
+
+class EpisodicMemory:
+    """Memory for specific scenarios and their outcomes"""
+    
+    def __init__(self):
+        self.episodes = {}
+    
+    def recall_similar_scenario(self, current_state: Dict) -> Optional[Dict]:
+        """Find similar past scenarios"""
+        # Implementation would use similarity metrics
+        pass
+
+
+
+
+# The Living System
+
+
+async def birth_cie():
+    """
+    Birth the Causal Intelligence Engine and let it live.
+    """
+    
+    # Create the living system
+    cie = CausalIntelligenceEngine()
+    
+    # Let it live
+    await cie.live()
+
+
+
+
+if __name__ == "__main__":
+    # Birth the system
+    logger.info("Birthing Causal Intelligence Engine v3.0...")
+    
+    try:
+        asyncio.run(birth_cie())
+    except KeyboardInterrupt:
+        logger.info("CIE v3.0 shutting down gracefully...")
+    except Exception as e:
+        logger.error(f"Fatal error: {str(e)}")
